@@ -1,4 +1,4 @@
-#include "surface_fitting_test.h"
+#include "header/surface_fitting_test.h"
 #include "ui_surface_fitting_test.h"
 
 surface_fitting_test::surface_fitting_test(QWidget *parent) :

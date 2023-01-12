@@ -2,7 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <surface_fitting_test.h>
+#include <header/surface_fitting_test.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }

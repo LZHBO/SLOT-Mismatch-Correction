@@ -9,17 +9,17 @@ CONFIG += c++11
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    main.cpp \
-    mainwindow.cpp \
-    surface_fitting_test.cpp
+    source/main.cpp \
+    source/mainwindow.cpp \
+    source/surface_fitting_test.cpp
 
 HEADERS += \
-    mainwindow.h \
-    surface_fitting_test.h
+    header/mainwindow.h \
+    header/surface_fitting_test.h
 
 FORMS += \
-    mainwindow.ui \
-    surface_fitting_test.ui
+    ui/mainwindow.ui \
+    ui/surface_fitting_test.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
