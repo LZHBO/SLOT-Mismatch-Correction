@@ -76,7 +76,7 @@ void surface_fitting_test::displayImageLeft(QImage image)
 
 double surface_fitting_test::getArithmicMiddle(QVector<int> vec, int base, int integral)
 {
-    {
+
         if(base==0){
             //qDebug()<<"0 was passed to this function";
             return 0;
@@ -95,7 +95,7 @@ double surface_fitting_test::getArithmicMiddle(QVector<int> vec, int base, int i
             }
         }
         return double (sum/frac);
-    }
+
 }
 
 

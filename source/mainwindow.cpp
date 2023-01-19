@@ -20,3 +20,10 @@ void MainWindow::on_pushButton_openSurfaceFitting_clicked()
     fit->show();
 }
 
+
+void MainWindow::on_pushButton_openDejitter_clicked()
+{
+    dej = new dejitter();
+    dej->show();
+}
+

@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <header/surface_fitting_test.h>
+#include <header/dejitter.h>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -19,8 +20,11 @@ public:
 private slots:
     void on_pushButton_openSurfaceFitting_clicked();
 
+    void on_pushButton_openDejitter_clicked();
+
 private:
     Ui::MainWindow *ui;
     surface_fitting_test *fit;
+    dejitter *dej;
 };
 #endif // MAINWINDOW_H
