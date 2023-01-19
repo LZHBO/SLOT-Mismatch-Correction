@@ -56,12 +56,6 @@ void surface_fitting_test::on_pushButton_loadAndDisplaySinogram_clicked()
     if(inputSinogram.width()!=inputSurface.width()){
         qDebug()<<"Sinogram and Surface don't match!!";
     }
-    if(!QDir(inputPathSurface).exists()){
-        QDir().mkdir(inputPathSurface);
-    }
-    if(!QDir(inputPathSinogram).exists()){
-        QDir().mkdir(inputPathSinogram);
-    }
     bufferImg = QImage(inputSurface.size(),QImage::Format_Grayscale8);
     bufferImg = thinOutSurface(inputSurface);
     displayImageLeft(inputSurface);
@@ -285,7 +279,7 @@ QImage surface_fitting_test::noiseBScan(QImage bScan, double noiseFactor)
     return bScan;
 }
 
-void surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage surface, double mediumRI, double sampleRI)  //Beim Übergang von der letzten zur ersten Proj geht noch was schief... Grauwerte haben einen scheinbar festen Offset
+QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage surface, double mediumRI, double sampleRI)  //Beim Übergang von der letzten zur ersten Proj geht noch was schief... Grauwerte haben einen scheinbar festen Offset
 {
     QElapsedTimer externalCorrectionTimer;
     externalCorrectionTimer.start();
@@ -296,12 +290,12 @@ void surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage surfa
     for(int k = 0;k<numberOfAngles;k++){
         QVector<double>rotatedPoint=QVector<double>(2);
         double rotateBy = (2*M_PI/double(numberOfAngles))*k;
-        rotatedSurfacesThinnedOut[k] = QImage(inputSurface.size(),QImage::Format_Grayscale8);
+        rotatedSurfacesThinnedOut[k] = QImage(surface.size(),QImage::Format_Grayscale8);
         rotatedSurfacesThinnedOut[k].fill(0);
-        for(int x = 0;x<inputSurface.width();x++){
-            for(int y = 0;y<inputSurface.height();y++){
-                if(getColor(inputSurface,x,y)!=0){
-                    rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},rotateBy,true);
+        for(int x = 0;x<surface.width();x++){
+            for(int y = 0;y<surface.height();y++){
+                if(getColor(surface,x,y)!=0){
+                    rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(surface.width()/2.0),double(surface.height()/2.0)},rotateBy,true);
                     int xRound = std::round(rotatedPoint[0]);
                     int yRound = std::round(rotatedPoint[1]);
                     for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
@@ -319,10 +313,10 @@ void surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage surfa
             }
         }
         rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
-        rotatedEntryPoints[k] = QVector<QVector<double>>(inputSurface.width());
+        rotatedEntryPoints[k] = QVector<QVector<double>>(surface.width());
         rotatedEntryPoints[k][0]={0,0,0,0};
         //Strahl durch die "Projektion" propagieren
-        for(int x = 1;x<inputSurface.width();x++){
+        for(int x = 1;x<surface.width();x++){
             rotatedEntryPoints[k][x]={0,0};
             if(getFirstValueFromTop(rotatedSurfacesThinnedOut[k],x-1)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[k],x)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[k],x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
                 QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[k],x,slopeSigma);
@@ -426,45 +420,50 @@ void surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage surfa
     }
     QElapsedTimer reTimer;
     reTimer.start();
-    QImage rearrangedExternalSinogram = QImage(inputSinogram.size(),QImage::Format_Grayscale16);
-    rearrangedSinogramFails = QImage(inputSinogram.size(),QImage::Format_RGB16);
-    rearrangedSinogramFails.fill(0);
+    QImage rearrangedExternalSinogram = QImage(sinogram.size(),QImage::Format_Grayscale16);
+//    rearrangedSinogramFails = QImage(sinogram.size(),QImage::Format_RGB16);
+//    rearrangedSinogramFails.fill(0);
     rearrangedExternalSinogram.fill(0);
     QVector<QVector<int>> travelledOnBackside;
     for(int p = 0; p<numberOfAngles;p++){
         qDebug()<<"Correction started for: "<<p<<reTimer.elapsed();
+        qDebug()<<"crash after line 430";
         quint16 *dstArrSino = (quint16*)(rearrangedExternalSinogram.bits()+p*rearrangedExternalSinogram.bytesPerLine());
-        for(int x = 0; x<inputSurface.width();x++){
+        for(int x = 0; x<surface.width();x++){
             if(rotatedEntryPoints[p][x][0]!=0){
-                rearrangedSinogramFails.setPixelColor(x,p,Qt::white);
-                if(rotatedEntryPoints[p][x][1]==0){                                                          //bei senkrechten Strahlen wird nichts verschoben!
-                    quint16 *dstSinoStraight = (quint16*)(inputSinogram.bits()+p*inputSinogram.bytesPerLine());
-                    rearrangedSinogramFails.setPixelColor(x,p,Qt::gray);
+                //rearrangedSinogramFails.setPixelColor(x,p,Qt::white);
+                if(rotatedEntryPoints[p][x][1]==0){
+                    qDebug()<<"crash after line 436";                                                     //bei senkrechten Strahlen wird nichts verschoben!
+                    quint16 *dstSinoStraight = (quint16*)(sinogram.bits()+p*sinogram.bytesPerLine());
+                    //rearrangedSinogramFails.setPixelColor(x,p,Qt::gray);
                     dstArrSino[x]=dstSinoStraight[x];
                 }else{
-                    double deltaTheta = getDeltaThetaForPartner(rotatedEntryPoints[p][x][3],riMedium,riSample);
+                    qDebug()<<"crash after line 441";
+                    double deltaTheta = getDeltaThetaForPartner(rotatedEntryPoints[p][x][3],mediumRI,sampleRI);
                     if(deltaTheta!=999){
                         double deltaProj = deltaTheta*double(numberOfAngles)/(2*M_PI);
-                        QVector<double> buf = rotateImagePointTo({double(x),rotatedEntryPoints[p][x][0]},{double(inputSurface.width()/2),double(inputSurface.height()/2)},deltaTheta,true);
+                        QVector<double> buf = rotateImagePointTo({double(x),rotatedEntryPoints[p][x][0]},{double(surface.width()/2),double(surface.height()/2)},deltaTheta,true);
                         double absNewX = buf[0];
-                        double value = newBilinInterpolFromSinogram(inputSinogram,absNewX,double(p)+deltaProj);
+                        qDebug()<<"crash after line 447";
+                        double value = newBilinInterpolFromSinogram(sinogram,absNewX,double(p)+deltaProj);
                         if(value<0){
-                            rearrangedSinogramFails.setPixelColor(x,p,Qt::cyan);
+                            //rearrangedSinogramFails.setPixelColor(x,p,Qt::cyan);
                             qDebug()<<"Wert war unter Null bei: "<<p<<x;
                             value=0;
                         }else if(value>65000){
                             value=65000;
                             qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
                         }else{
-                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkBlue);
+                            //rearrangedSinogramFails.setPixelColor(x,p,Qt::darkBlue);
                         }
                         if(accountForReflection==true){
-                            value = value/getTransmissionGrade(riMedium,riSample,rotatedEntryPoints[p][x]);
+                            value = value/getTransmissionGrade(mediumRI,sampleRI,rotatedEntryPoints[p][x]);
                         }
+                        qDebug()<<"crash after line 462";
                         dstArrSino[x] = std::round(value);
                     }else{
                         travelledOnBackside.append({p,x});
-                        rearrangedSinogramFails.setPixelColor(x,p,Qt::red);
+                        //rearrangedSinogramFails.setPixelColor(x,p,Qt::red);
                     }
                 }
 
@@ -473,31 +472,30 @@ void surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage surfa
     } //Am Ende noch die letzten beiden Zeilen aus der ersten kopieren
     quint16 *dstArrSinoBot = (quint16*)(rearrangedExternalSinogram.bits()+numberOfAngles*rearrangedExternalSinogram.bytesPerLine());
     quint16 *dstArrSinoTop = (quint16*)(rearrangedExternalSinogram.bits());
-    for(int x = 0;x<inputSinogram.width();x++){
+    for(int x = 0;x<sinogram.width();x++){
         dstArrSinoBot[x] = dstArrSinoTop[x];
     }
     quint16 *dstArrSinoBot2 = (quint16*)(rearrangedExternalSinogram.bits()+(numberOfAngles+1)*rearrangedExternalSinogram.bytesPerLine());
-    for(int x = 0;x<inputSinogram.width();x++){
+    for(int x = 0;x<sinogram.width();x++){
         dstArrSinoBot2[x] = dstArrSinoTop[x];
     }
     for(int r = 0;r<travelledOnBackside.size();r++){ // Wenn Punkte bei Korrektur auf die Rückseite gewandert sind, wird hier der Wert "von der anderen Seite" kopiert
-        int fromX = inputSinogram.width()-travelledOnBackside[r][1]-1;
+        int fromX = sinogram.width()-travelledOnBackside[r][1]-1;
         quint16 *dstArrSinoSource = (quint16*)(rearrangedExternalSinogram.bits()+((travelledOnBackside[r][0]+numberOfAngles/2)%numberOfAngles)*rearrangedExternalSinogram.bytesPerLine());
         quint16 *dstArrSinoFailed = (quint16*)(rearrangedExternalSinogram.bits()+(travelledOnBackside[r][0])*rearrangedExternalSinogram.bytesPerLine());
         if(dstArrSinoSource[fromX]!=0){
-            rearrangedSinogramFails.setPixelColor(travelledOnBackside[r][1],travelledOnBackside[r][0],Qt::yellow);
+            //rearrangedSinogramFails.setPixelColor(travelledOnBackside[r][1],travelledOnBackside[r][0],Qt::yellow);
             dstArrSinoFailed[travelledOnBackside[r][1]] = dstArrSinoSource[fromX];
         }
     }
-    QString nrOfProjString2 = QString::number(numberOfAngles);
-    QString nameRI2 = QString::number(riMedium,'g',4);
-    nameRI2.append("_");
-    nameRI2.append(QString::number(riSample,'g',4));
-    nameRI2.append("_");
-    rearrangedSinogramFails.save(inputPathSinogram+"\\"+nameRI2+nrOfProjString2+"_sinogramRearrangedFailsFromExternal.png");
-    rearrangedExternalSinogram.save(inputPathSinogram+"\\"+nameRI2+nrOfProjString2+"_sinogramRearrangedFromExternal.png");
-    rearrangedSinogramFails.fill(0);
+
+    rotatedEntryPoints.resize(0);
+    rotatedSurfacesThinnedOut.resize(0);
+    //rearrangedSinogramFails.save(inputPathSinogram+"\\"+nameRI2+nrOfProjString2+"_sinogramRearrangedFailsFromExternal.png");
+    //rearrangedExternalSinogram.save(inputPathSinogram+"\\"+nameRI2+nrOfProjString2+"_sinogramRearrangedFromExternal.png"); Umstellung von save auf return!
+    //rearrangedSinogramFails.fill(0);
     qDebug()<<"Sinogram fertig sortiert!";
+    return rearrangedExternalSinogram;
 }
 
 void surface_fitting_test::drawAndDisplaySlope(QImage image, int X, int Y, double slope, int width)
@@ -744,15 +742,6 @@ double surface_fitting_test::getTransmissionGrade(double riMedium, double riSamp
         double tp = 1.0 - pow((qTan(alpha-beta)/qTan(alpha+beta)),2);
         double ts = 1.0 - pow((-qSin(alpha-beta)/qSin(alpha+beta)),2);
         return (tp+ts)/2.0;
-    }
-}
-
-QImage surface_fitting_test::offsetImage(QImage sinogram, int offset)
-{
-    if(offset == 0){
-        return sinogram;
-    }else if(offset>0){
-        return sinogram;
     }
 }
 
@@ -1357,7 +1346,16 @@ void surface_fitting_test::on_pushButton_newCorrection_clicked()
 
 void surface_fitting_test::on_pushButton_correctInputSinogram_clicked()
 {
-    correctExternalSinogram(inputSinogram,inputSurface,riMedium,riSample);
+    if(!QDir(inputPathSinogram).exists()){
+        QDir().mkdir(inputPathSinogram);
+    }
+    QImage exSino = correctExternalSinogram(inputSinogram,inputSurface,riMedium,riSample);
+    QString nrOfProjString2 = QString::number(inputSinogram.height()-2);
+    QString nameRI2 = QString::number(riMedium,'g',4);
+    nameRI2.append("_");
+    nameRI2.append(QString::number(riSample,'g',4));
+    nameRI2.append("_");
+    exSino.save(inputPathSinogram+"\\"+nameRI2+nrOfProjString2+"_sinogramRearrangedFromExternal.png");
 }
 
 
@@ -1373,3 +1371,52 @@ void surface_fitting_test::on_checkBox_accountForReflection_stateChanged(int arg
     accountForReflection = arg1;
 }
 
+
+void surface_fitting_test::on_pushButton_chooseSurfaceDirectory_clicked()
+{
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
+    QDir dir(folderpathSurfaceStack);
+    fileListInfoSurface = dir.entryInfoList();
+    fileListInfoSurface.removeFirst();
+    fileListInfoSurface.removeFirst();
+}
+
+
+void surface_fitting_test::on_pushButton_ChooseSinogramDirectory_clicked()
+{
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
+    QDir dir(folderpathSurfaceStack);
+    fileListInfoSinogram = dir.entryInfoList();
+    fileListInfoSinogram.removeFirst();
+    fileListInfoSinogram.removeFirst();
+}
+
+
+void surface_fitting_test::on_pushButton_correctStack_clicked()
+{
+    riMedium = ui->doubleSpinBox_riMedium->value();
+    riSample = ui->doubleSpinBox_riSample->value();
+    arithMiddleSigma = ui->spinBox_arithMiddleSigma->value();
+    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
+    QDir saveDir(folderpathSave);
+    QString savePath = saveDir.absolutePath();
+    savePath.append("/");
+    qDebug()<<savePath;
+    if(fileListInfoSinogram.size()==fileListInfoSurface.size()){
+        int stackSize = fileListInfoSinogram.size();
+        for ( int i = 0; i<stackSize;i++){
+            QImage bufSinogram, bufSurface;
+            if(bufSinogram.load(fileListInfoSinogram[i].absoluteFilePath())&&bufSurface.load(fileListInfoSurface[i].absoluteFilePath())){
+                numberOfProjections = bufSinogram.height();
+                QImage correctedSinogram = correctExternalSinogram(bufSinogram,bufSurface,riMedium,riSample);
+                QString name = "korrigiertesSinogram_";
+                name.append(QString::number(i)).append(".png");
+                correctedSinogram.save(savePath + name);
+            }else{
+                qDebug()<<"Loading images Failed!";
+            }
+        }
+    }else{
+        qDebug()<<"Number of Surface and Sinograms did not match";
+    }
+}

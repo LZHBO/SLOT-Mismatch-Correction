@@ -519,6 +519,72 @@
     <string>Account for Reflection?</string>
    </property>
   </widget>
+  <widget class="Line" name="line">
+   <property name="geometry">
+    <rect>
+     <x>1020</x>
+     <y>110</y>
+     <width>261</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
+  <widget class="Line" name="line_2">
+   <property name="geometry">
+    <rect>
+     <x>1010</x>
+     <y>120</y>
+     <width>20</width>
+     <height>111</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Vertical</enum>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_chooseSurfaceDirectory">
+   <property name="geometry">
+    <rect>
+     <x>1030</x>
+     <y>120</y>
+     <width>171</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Choose Surface Stack Directory</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_ChooseSinogramDirectory">
+   <property name="geometry">
+    <rect>
+     <x>1030</x>
+     <y>150</y>
+     <width>171</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Choose Sinogram Stack Directory</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_correctStack">
+   <property name="geometry">
+    <rect>
+     <x>1210</x>
+     <y>120</y>
+     <width>75</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Correct 
+ Stack</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections/>

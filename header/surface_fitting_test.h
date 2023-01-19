@@ -11,6 +11,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QRandomGenerator>
+#include <QFileDialog>
 
 
 
@@ -63,11 +64,19 @@ private slots:
 
     void on_checkBox_accountForReflection_stateChanged(int arg1);
 
+    void on_pushButton_chooseSurfaceDirectory_clicked();
+
+    void on_pushButton_ChooseSinogramDirectory_clicked();
+
+    void on_pushButton_correctStack_clicked();
+
 private:
     Ui::surface_fitting_test *ui;
     QString inputPathSurface;
     QString inputPathHisto;
     QString inputPathSinogram;
+    QFileInfoList fileListInfoSurface;
+    QFileInfoList fileListInfoSinogram;
     QString nameRI;
     double riMedium;
     double riSample;
@@ -107,7 +116,7 @@ private:
     int getFirstValueFromBottom(QImage image, int X);
     QImage thinOutSurface(QImage image);
     QImage noiseBScan(QImage bScan, double noiseFactor);
-    void correctExternalSinogram(QImage sinogram, QImage surface, double mediumRI, double sampleRI);
+    QImage correctExternalSinogram(QImage sinogram, QImage surface, double mediumRI, double sampleRI);
     void drawAndDisplaySlope(QImage image,int X, int Y, double slope, int width);
     /**
      * gibt Winkelabweichung von senkrechter Gerade in radiant wieder, input ist als Steigung deltaY/deltaX
@@ -135,7 +144,6 @@ private:
      * rotatedEntryPoint: y entry, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche
      */
     double getTransmissionGrade(double riMedium, double riSample, QVector<double> rotatedEntryPoint);
-    QImage offsetImage(QImage sinogram, int offset);
 };
 
 #endif // SURFACE_FITTING_TEST_H
