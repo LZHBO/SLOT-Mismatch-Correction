@@ -16,7 +16,7 @@
   <widget class="QPushButton" name="pushButton_loadMap">
    <property name="geometry">
     <rect>
-     <x>130</x>
+     <x>200</x>
      <y>40</y>
      <width>171</width>
      <height>41</height>
@@ -26,17 +26,17 @@
     <string>Load Dejitter Map</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton_loadSinograms">
+  <widget class="QPushButton" name="pushButton_loadPdStack">
    <property name="geometry">
     <rect>
-     <x>130</x>
-     <y>90</y>
+     <x>200</x>
+     <y>150</y>
      <width>171</width>
      <height>41</height>
     </rect>
    </property>
    <property name="text">
-    <string>Load Sinograms</string>
+    <string>Load PD Stack</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_testMath">
@@ -50,6 +50,84 @@
    </property>
    <property name="text">
     <string>Test Math</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_loadPmtStack">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>200</y>
+     <width>171</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Load PMT Stack</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_loadMatchingPD">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>90</y>
+     <width>171</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Load Matching Sinogram</string>
+   </property>
+  </widget>
+  <widget class="Line" name="line">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>130</y>
+     <width>181</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEdit_dejitterMap">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>50</y>
+     <width>191</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>C:\Users\o.hill\Pictures\oct_handling\dejitter\</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEdit_matchingSinogram">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>100</y>
+     <width>191</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>C:\Users\o.hill\Pictures\oct_handling\dejitter\</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_dejitterStack">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>250</y>
+     <width>171</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Dejitter Stack</string>
    </property>
   </widget>
  </widget>

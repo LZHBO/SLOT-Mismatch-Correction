@@ -30,9 +30,15 @@ public:
 private slots:
     void on_pushButton_loadMap_clicked();
 
-    void on_pushButton_loadSinograms_clicked();
-
     void on_pushButton_testMath_clicked();
+
+    void on_pushButton_loadMatchingPD_clicked();
+
+    void on_pushButton_loadPdStack_clicked();
+
+    void on_pushButton_loadPmtStack_clicked();
+
+    void on_pushButton_dejitterStack_clicked();
 
 private:
 
@@ -40,11 +46,15 @@ private:
     QImage transmissionSinogram;
     QImage fluorescenceSinogram;
     QVector<QVector<float>> curveCoordinates;
-    QVector<float> offsetList;
     QVector<QImage> transmissionStack;
     QVector<QImage> fluorescenceStack;
+    QVector<float> offsetMap;
+    QFileInfoList PDlist;
+    QFileInfoList PMTlist;
+    bool dejitterPD = 0;
+    bool dejitterPMT = 0;
 
-    void readFile();
+    void readFile(QString path);
 
     QVector<float> makeCurveFromList(QVector<QVector<float>> list, int height);
 
@@ -52,13 +62,19 @@ private:
 
     float getArithmicMiddle(QVector<int> vec, int base, int integral);
 
-    QVector<int> getVerticalColor(QImage image, int Y);
+    QVector<int> getVerticalColorVector(QImage image, int Y);
+
+    int getIndexOfFirstValue(QVector<int> vec);
+
+    float getBoarderCoordinate(QImage sinogram, int Y);
 
     int getColor(QImage image, int x, int y);
     /** Positiver Offset bedeutet, dass die Zeile nach rechts verschoben werden soll
      *
      */
     QImage moveVerticalPixelsBy(QImage image, int offset, int row);
+
+    QImage dejitterSinogram(QImage sinogram, QVector<float> offsetList);
 
 };
 
