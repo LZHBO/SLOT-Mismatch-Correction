@@ -155,10 +155,14 @@ QImage dejitter::moveVerticalPixelsBy(QImage image, int offset, int row)
     return image;
 }
 
-QImage dejitter::dejitterSinogram(QImage sinogram, QVector<float> offsetList)
+QImage dejitter::dejitterSinogram(QImage sinogram, QVector<float> offsetList, bool pmt)
 {
     QImage dejiSino = sinogram;
-    dejiSino.fill(0);
+    if(pmt){
+        dejiSino.fill(0);
+    }else{
+        dejiSino.fill(60000);
+    }
     for(int y = 0; y<sinogram.height();y++){
         quint16 *dstDeji = (quint16*)(dejiSino.bits()+y*dejiSino.bytesPerLine());
         quint16 *dstSinogram = (quint16*)(sinogram.bits()+y*sinogram.bytesPerLine());
@@ -183,8 +187,14 @@ QImage dejitter::dejitterSinogram(QImage sinogram, QVector<float> offsetList)
         }
         }
     return dejiSino;
-    }
+}
 
+void dejitter::testfunction(int* x, int* y, QImage *image)
+{
+    int* result = x;
+    image->fill(*result);
+    return;
+}
 
 void dejitter::on_pushButton_loadMap_clicked()
 {
@@ -204,6 +214,8 @@ void dejitter::on_pushButton_testMath_clicked()
     }
     looser.save("C:/Users/o.hill/Pictures/oct_handling/surface_steepness/sinogram_PMT/sinogram_PMT0001_offset.png");
     looser.save("C:/Users/o.hill/Pictures/oct_handling/surface_steepness/sinogram_PMT/sinogram_PMT0001_offset.tif");
+    int k = 8;
+    testfunction(&k,&k,&looser);
 }
 
 void dejitter::on_pushButton_loadMatchingPD_clicked()
@@ -262,7 +274,7 @@ void dejitter::on_pushButton_dejitterStack_clicked()
         for(int i = 0; i<PDlist.size();i++){
             QImage bufSinogram;
             bufSinogram.load(PDlist[i].absoluteFilePath());
-            bufSinogram = dejitterSinogram(bufSinogram,offsetMap);
+            bufSinogram = dejitterSinogram(bufSinogram,offsetMap, false);
             QString name = "korrigiertesPD_Sinogram_";
             name.append(QString::number(i)).append(".png");
             bufSinogram.save(savePath + name);
@@ -273,7 +285,7 @@ void dejitter::on_pushButton_dejitterStack_clicked()
         for(int i = 0; i<PMTlist.size();i++){
             QImage bufSinogram;
             bufSinogram.load(PMTlist[i].absoluteFilePath());
-            bufSinogram = dejitterSinogram(bufSinogram,offsetMap);
+            bufSinogram = dejitterSinogram(bufSinogram,offsetMap, true);
             QString name = "korrigiertesPMT_Sinogram_";
             name.append(QString::number(i)).append(".png");
             bufSinogram.save(savePath + name);

@@ -279,7 +279,7 @@ QImage surface_fitting_test::noiseBScan(QImage bScan, double noiseFactor)
     return bScan;
 }
 
-QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage surface, double mediumRI, double sampleRI)  //Beim Übergang von der letzten zur ersten Proj geht noch was schief... Grauwerte haben einen scheinbar festen Offset
+QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage surface, QString surfacePath, double mediumRI, double sampleRI)  //Beim Übergang von der letzten zur ersten Proj geht noch was schief... Grauwerte haben einen scheinbar festen Offset
 {
     QElapsedTimer externalCorrectionTimer;
     externalCorrectionTimer.start();
@@ -287,7 +287,11 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
     int numberOfAngles = sinogram.height()-2;
     rotatedSurfacesThinnedOut = QVector<QImage>(numberOfAngles);
     rotatedEntryPoints = QVector<QVector<QVector<double>>>(numberOfAngles);
+    if(useArrayFire){
+        rotatedSurfacesThinnedOut = makeRotatedImageStack(surfacePath, numberOfAngles);
+    }
     for(int k = 0;k<numberOfAngles;k++){
+        if(!useArrayFire){
         QVector<double>rotatedPoint=QVector<double>(2);
         double rotateBy = (2*M_PI/double(numberOfAngles))*k;
         rotatedSurfacesThinnedOut[k] = QImage(surface.size(),QImage::Format_Grayscale8);
@@ -311,6 +315,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                     }
                 }
             }
+        }
         }
         rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
         rotatedEntryPoints[k] = QVector<QVector<double>>(surface.width());
@@ -427,24 +432,24 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
     QVector<QVector<int>> travelledOnBackside;
     for(int p = 0; p<numberOfAngles;p++){
         qDebug()<<"Correction started for: "<<p<<reTimer.elapsed();
-        qDebug()<<"crash after line 430";
+        //qDebug()<<"crash after line 430";
         quint16 *dstArrSino = (quint16*)(rearrangedExternalSinogram.bits()+p*rearrangedExternalSinogram.bytesPerLine());
         for(int x = 0; x<surface.width();x++){
             if(rotatedEntryPoints[p][x][0]!=0){
                 //rearrangedSinogramFails.setPixelColor(x,p,Qt::white);
                 if(rotatedEntryPoints[p][x][1]==0){
-                    qDebug()<<"crash after line 436";                                                     //bei senkrechten Strahlen wird nichts verschoben!
+                    //qDebug()<<"crash after line 436";                                                     //bei senkrechten Strahlen wird nichts verschoben!
                     quint16 *dstSinoStraight = (quint16*)(sinogram.bits()+p*sinogram.bytesPerLine());
                     //rearrangedSinogramFails.setPixelColor(x,p,Qt::gray);
                     dstArrSino[x]=dstSinoStraight[x];
                 }else{
-                    qDebug()<<"crash after line 441";
+                    //qDebug()<<"crash after line 441";
                     double deltaTheta = getDeltaThetaForPartner(rotatedEntryPoints[p][x][3],mediumRI,sampleRI);
                     if(deltaTheta!=999){
                         double deltaProj = deltaTheta*double(numberOfAngles)/(2*M_PI);
                         QVector<double> buf = rotateImagePointTo({double(x),rotatedEntryPoints[p][x][0]},{double(surface.width()/2),double(surface.height()/2)},deltaTheta,true);
                         double absNewX = buf[0];
-                        qDebug()<<"crash after line 447";
+                        //qDebug()<<"crash after line 447";
                         double value = newBilinInterpolFromSinogram(sinogram,absNewX,double(p)+deltaProj);
                         if(value<0){
                             //rearrangedSinogramFails.setPixelColor(x,p,Qt::cyan);
@@ -459,7 +464,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         if(accountForReflection==true){
                             value = value/getTransmissionGrade(mediumRI,sampleRI,rotatedEntryPoints[p][x]);
                         }
-                        qDebug()<<"crash after line 462";
+                        //qDebug()<<"crash after line 462";
                         dstArrSino[x] = std::round(value);
                     }else{
                         travelledOnBackside.append({p,x});
@@ -743,6 +748,42 @@ double surface_fitting_test::getTransmissionGrade(double riMedium, double riSamp
         double ts = 1.0 - pow((-qSin(alpha-beta)/qSin(alpha+beta)),2);
         return (tp+ts)/2.0;
     }
+}
+
+QVector<QImage> surface_fitting_test::makeRotatedImageStack(QString path, int stackSize)
+{
+    QElapsedTimer reTimer;
+    reTimer.start();
+    QVector<QImage> rotatedStack = QVector<QImage>(stackSize);
+    qDebug()<<path;
+    qDebug()<<"rotation Started"<<reTimer.elapsed();
+    if(path.endsWith(".png")){
+        path.remove(path.length()-4,4);
+    }
+    qDebug()<<path;
+    QString inputCopyPath = path;
+    inputCopyPath.append(".png");
+    std::string str = inputCopyPath.toStdString();
+    const char* p = str.c_str();
+    qDebug()<<"Dings zu const char converted"<<reTimer.elapsed();
+    af::array pic = af::loadImage(p,false);
+    qDebug()<<"image loaded as array"<<reTimer.elapsed();
+    for(int k = 0; k<stackSize;k++){
+        af::array rot = af::rotate(pic,float(k)/float(stackSize)*2*M_PI,true,AF_INTERP_BILINEAR);
+        //qDebug()<<"image rotated as array"<<reTimer.elapsed();
+        QString saveString = path;
+        //saveString.append(QString::number(k,'g',3));
+        saveString.append("_buffer.png");
+        std::string saveStr = saveString.toStdString();
+        const char* q = saveStr.c_str();
+        af::saveImage(q,rot);
+        //qDebug()<<"image saved"<<reTimer.elapsed();
+        QImage saveImage;
+        saveImage.load(saveString);
+        rotatedStack[k]=saveImage;
+        qDebug()<<"image"<<k<<"added to stack"<<reTimer.elapsed();
+    }
+    return rotatedStack;
 }
 
 
@@ -1175,9 +1216,7 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked()
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-    QVector<double> slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),ui->spinBox_slopeSigma->value());
-    auto test = getTransmissionGrade(riMedium,riSample,{10.0,getExitAngle(slope[1],riMedium,riSample),3,slope[1]});
-    qDebug()<<test;
+    makeRotatedImageStack(inputPathHisto,800);
 }
 
 void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)
@@ -1202,59 +1241,71 @@ void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
     nrOfProjString = QString::number(numberOfProjections);
     rotatedHistoImages = QVector<QImage>(numberOfProjections);
     rotatedSurfacesThinnedOut = QVector<QImage>(numberOfProjections);
-    for(int k = 0;k<numberOfProjections;k++){
-        QVector<double>rotatedPoint=QVector<double>(2);
-        double rotateBy = (2*M_PI/double(numberOfProjections))*k;
-        rotatedSurfacesThinnedOut[k] = QImage(inputSurface.size(),QImage::Format_Grayscale8);
-        rotatedSurfacesThinnedOut[k].fill(0);
-        for(int x = 0;x<inputSurface.width();x++){
-            for(int y = 0;y<inputSurface.height();y++){
-                if(getColor(inputSurface,x,y)!=0){
-                    rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},rotateBy,true);
-                    int xRound = std::round(rotatedPoint[0]);
-                    int yRound = std::round(rotatedPoint[1]);
-                    for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
-                        for(int yGauss = yRound-2;yGauss<=yRound+2;yGauss++){
-                            int newInt = getColor(rotatedSurfacesThinnedOut[k],xGauss,yGauss) + int(200.0*getValueForGaussDistribution(rotatedPoint[0],rotatedPoint[1],xGauss,yGauss,1));
-                            if(newInt>255){
-                                newInt=255;
-                                qDebug()<<"Grauwert zu hoch";
+    if(useArrayFire){
+        qDebug()<<"Surfaces rotated"<<bigTimer.elapsed();
+        rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
+        for(int k = 0; k<numberOfProjections;k++){
+            rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
+        }
+        qDebug()<<"Surfaces thinned out"<<bigTimer.elapsed();
+        rotatedHistoImages = makeRotatedImageStack(inputPathHisto,numberOfProjections);
+        qDebug()<<"Histos rotated"<<bigTimer.elapsed();
+    }
+    else{
+        for(int k = 0;k<numberOfProjections;k++){
+            QVector<double>rotatedPoint=QVector<double>(2);
+            double rotateBy = (2*M_PI/double(numberOfProjections))*k;
+            rotatedSurfacesThinnedOut[k] = QImage(inputSurface.size(),QImage::Format_Grayscale8);
+            rotatedSurfacesThinnedOut[k].fill(0);
+            for(int x = 0;x<inputSurface.width();x++){
+                for(int y = 0;y<inputSurface.height();y++){
+                    if(getColor(inputSurface,x,y)!=0){
+                        rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},rotateBy,true);
+                        int xRound = std::round(rotatedPoint[0]);
+                        int yRound = std::round(rotatedPoint[1]);
+                        for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
+                            for(int yGauss = yRound-2;yGauss<=yRound+2;yGauss++){
+                                int newInt = getColor(rotatedSurfacesThinnedOut[k],xGauss,yGauss) + int(200.0*getValueForGaussDistribution(rotatedPoint[0],rotatedPoint[1],xGauss,yGauss,1));
+                                if(newInt>255){
+                                    newInt=255;
+                                    qDebug()<<"Grauwert zu hoch";
+                                }
+                                quint8 *dstRotSurface = (quint8*)(rotatedSurfacesThinnedOut[k].bits()+yGauss*rotatedSurfacesThinnedOut[k].bytesPerLine());
+                                dstRotSurface[xGauss] = newInt;
                             }
-                            quint8 *dstRotSurface = (quint8*)(rotatedSurfacesThinnedOut[k].bits()+yGauss*rotatedSurfacesThinnedOut[k].bytesPerLine());
-                            dstRotSurface[xGauss] = newInt;
                         }
                     }
                 }
             }
-        }
-        rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
-        rotatedHistoImages[k]=QImage(inputHisto.size(),QImage::Format_Grayscale8);
-        rotatedHistoImages[k].fill(0);
-        double rotationAngleHisto = double((2*M_PI)/double(numberOfProjections))*double(k);
-        double histoColor;
-        for(int x = 0; x<inputHisto.width();x++){
-            for(int y = 0;y<inputHisto.height();y++){
-                histoColor = getColor(inputHisto,x,y);
-                if(histoColor!=0){
-                    QVector<double> newPixel = rotateImagePointTo({double(x),double(y)},{double(inputHisto.width()/2.0),double(inputHisto.height()/2.0)},rotationAngleHisto,true);
-                    int xRound = std::round(newPixel[0]);
-                    int yRound = std::round(newPixel[1]);
-                    for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
-                        for(int yGauss = yRound-2;yGauss<=yRound+2;yGauss++){
-                            int newInt = getColor(rotatedHistoImages[k],xGauss,yGauss) + int(histoColor*getValueForGaussDistribution(newPixel[0],newPixel[1],xGauss,yGauss,1));
-                            if(newInt>255){
-                                newInt=255;
-                                qDebug()<<"Grauwert zu hoch";
+            rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
+            rotatedHistoImages[k]=QImage(inputHisto.size(),QImage::Format_Grayscale8);
+            rotatedHistoImages[k].fill(0);
+            double rotationAngleHisto = double((2*M_PI)/double(numberOfProjections))*double(k);
+            double histoColor;
+            for(int x = 0; x<inputHisto.width();x++){
+                for(int y = 0;y<inputHisto.height();y++){
+                    histoColor = getColor(inputHisto,x,y);
+                    if(histoColor!=0){
+                        QVector<double> newPixel = rotateImagePointTo({double(x),double(y)},{double(inputHisto.width()/2.0),double(inputHisto.height()/2.0)},rotationAngleHisto,true);
+                        int xRound = std::round(newPixel[0]);
+                        int yRound = std::round(newPixel[1]);
+                        for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
+                            for(int yGauss = yRound-2;yGauss<=yRound+2;yGauss++){
+                                int newInt = getColor(rotatedHistoImages[k],xGauss,yGauss) + int(histoColor*getValueForGaussDistribution(newPixel[0],newPixel[1],xGauss,yGauss,1));
+                                if(newInt>255){
+                                    newInt=255;
+                                    qDebug()<<"Grauwert zu hoch";
+                                }
+                                quint8 *dstRotHisto = (quint8*)(rotatedHistoImages[k].bits()+yGauss*rotatedHistoImages[k].bytesPerLine());
+                                dstRotHisto[xGauss] = newInt;
                             }
-                            quint8 *dstRotHisto = (quint8*)(rotatedHistoImages[k].bits()+yGauss*rotatedHistoImages[k].bytesPerLine());
-                            dstRotHisto[xGauss] = newInt;
                         }
                     }
                 }
             }
+            qDebug()<<"Histogram rotiert: "<<k<<bigTimer.elapsed();
         }
-        qDebug()<<"Histogram rotiert: "<<k<<bigTimer.elapsed();
-}
+    }
 }
 
 void surface_fitting_test::on_pushButton_continousSimulation_clicked()
@@ -1349,7 +1400,7 @@ void surface_fitting_test::on_pushButton_correctInputSinogram_clicked()
     if(!QDir(inputPathSinogram).exists()){
         QDir().mkdir(inputPathSinogram);
     }
-    QImage exSino = correctExternalSinogram(inputSinogram,inputSurface,riMedium,riSample);
+    QImage exSino = correctExternalSinogram(inputSinogram,inputSurface,inputPathSurface,riMedium,riSample);
     QString nrOfProjString2 = QString::number(inputSinogram.height()-2);
     QString nameRI2 = QString::number(riMedium,'g',4);
     nameRI2.append("_");
@@ -1377,8 +1428,10 @@ void surface_fitting_test::on_pushButton_chooseSurfaceDirectory_clicked()
     const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
     QDir dir(folderpathSurfaceStack);
     fileListInfoSurface = dir.entryInfoList();
+
     fileListInfoSurface.removeFirst();
     fileListInfoSurface.removeFirst();
+    qDebug()<<fileListInfoSurface;
 }
 
 
@@ -1408,7 +1461,7 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
             QImage bufSinogram, bufSurface;
             if(bufSinogram.load(fileListInfoSinogram[i].absoluteFilePath())&&bufSurface.load(fileListInfoSurface[i].absoluteFilePath())){
                 numberOfProjections = bufSinogram.height();
-                QImage correctedSinogram = correctExternalSinogram(bufSinogram,bufSurface,riMedium,riSample);
+                QImage correctedSinogram = correctExternalSinogram(bufSinogram,bufSurface, fileListInfoSurface[i].absoluteFilePath(),riMedium,riSample);
                 QString name = "korrigiertesSinogram_";
                 name.append(QString::number(i)).append(".png");
                 correctedSinogram.save(savePath + name);
@@ -1420,3 +1473,9 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
         qDebug()<<"Number of Surface and Sinograms did not match";
     }
 }
+
+void surface_fitting_test::on_checkBox_useArrayFire_stateChanged(int arg1)
+{
+    useArrayFire = arg1;
+}
+

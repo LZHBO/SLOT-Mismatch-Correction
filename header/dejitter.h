@@ -74,7 +74,9 @@ private:
      */
     QImage moveVerticalPixelsBy(QImage image, int offset, int row);
 
-    QImage dejitterSinogram(QImage sinogram, QVector<float> offsetList);
+    QImage dejitterSinogram(QImage sinogram, QVector<float> offsetList, bool pmt);
+
+    void testfunction(int* x, int* y, QImage* image);
 
 };
 

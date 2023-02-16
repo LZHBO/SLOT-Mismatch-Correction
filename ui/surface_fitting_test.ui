@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\oct_handling\surface_steepness\DO31c_e_3_photo_diode_0031</string>
+    <string>C:\Users\o.hill\Pictures\oct_handling\surface_steepness\surface14</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -290,7 +290,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\oct_handling\surface_steepness\histo12</string>
+    <string>C:\Users\o.hill\Pictures\oct_handling\surface_steepness\histo14</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">
@@ -583,6 +583,19 @@
    <property name="text">
     <string>Correct 
  Stack</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="checkBox_useArrayFire">
+   <property name="geometry">
+    <rect>
+     <x>1040</x>
+     <y>180</y>
+     <width>141</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Use ArrayFire</string>
    </property>
   </widget>
  </widget>
