@@ -28,3 +28,10 @@ FORMS += \
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+win32:CONFIG(release, debug|release): LIBS += -L$$PWD/'../../../../../Program Files/ArrayFire/v3/lib/' -laf
+else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/'../../../../../Program Files/ArrayFire/v3/lib/' -laf
+else:unix: LIBS += -L$$PWD/'../../../../../Program Files/ArrayFire/v3/lib/' -laf
+
+INCLUDEPATH += $$PWD/'../../../../../Program Files/ArrayFire/v3/include'
+DEPENDPATH += $$PWD/'../../../../../Program Files/ArrayFire/v3/include'

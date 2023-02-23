@@ -76,7 +76,6 @@ void surface_fitting_test::displayImageLeft(QImage image)
 
 double surface_fitting_test::getArithmicMiddle(QVector<int> vec, int base, int integral)
 {
-
         if(base==0){
             //qDebug()<<"0 was passed to this function";
             return 0;
@@ -95,9 +94,34 @@ double surface_fitting_test::getArithmicMiddle(QVector<int> vec, int base, int i
             }
         }
         return double (sum/frac);
-
 }
 
+//double surface_fitting_test::getArithmicMiddleAF(QVector<int> vec, int base, int integral)
+//{
+//    QElapsedTimer timer;
+//    timer.start();
+//    if(base==0){
+//        //qDebug()<<"0 was passed to this function";
+//        return 0;
+//    }
+//    af::array baseAF = range(af::dim4(integral));
+//    qDebug()<<timer.elapsed();
+//    baseAF = baseAF.operator+=(base); //das sollte die Base zu jedem Element des Arrays hinzufügen...
+//    af_print(baseAF);
+//    vec.remove(base + integral-1,1+vec.size()-base-integral);
+//    vec.remove(0,base-1);
+//    qDebug()<<vec;
+//    int slorp[4];
+//    for(int i = 0; i< integral;i++){
+//        slorp[i]=vec[i];
+//    }
+//    af::array vecAF(4,1,slorp);
+//    af_print(vecAF);
+//    vecAF = vecAF.operator*=(baseAF);
+//    af_print(vecAF);
+//    qDebug()<<timer.elapsed();
+//    return 0;
+//}
 
 QVector<int> surface_fitting_test::fillVectorWithAscan(QImage image, int X)
 {
@@ -116,13 +140,12 @@ int surface_fitting_test::getColor(QImage image, int x, int y)
     return color.green();
 }
 
-QImage surface_fitting_test::setPixelColor8Bit(QImage image, int x, int y, int value)
+QImage surface_fitting_test::setPixelColor8Bit(QImage image, int x, int y, int value, int bytesPerLine)
 {
-    quint8 *dstColor = (quint8*)(image.bits()+y*image.bytesPerLine());
+    quint8 *dstColor = (quint8*)(image.bits()+y*bytesPerLine);
     dstColor[x] = value;
     return image;
 }
-
 
 QVector<double> surface_fitting_test::getSlopeAtEntry(QImage image, int X, int sigma)
 {
@@ -162,8 +185,9 @@ QVector<double> surface_fitting_test::getSlopeAtEntry(QImage image, int X, int s
     }
     b = yQuer - (Sxy/Sxx)*xQuer;
     double yReturn = b + (Sxy/Sxx)*X;
-    QVector<double> d{yReturn,Sxy/Sxx};
-    return d; // Vorzeichenwechsel scheint falsch herum, weil der Nullpunkt von Bildern oben links ist
+    //QVector<double> d{yReturn,Sxy/Sxx};
+    //return d; // Vorzeichenwechsel scheint falsch herum, weil der Nullpunkt von Bildern oben links ist
+    return {yReturn,Sxy/Sxx};
 }
 
 QVector<double> surface_fitting_test::getSlopeAtExit(QImage image, int X, int sigma)  // quasi real-time
@@ -203,8 +227,9 @@ QVector<double> surface_fitting_test::getSlopeAtExit(QImage image, int X, int si
     }
     b = yQuer - (Sxy/Sxx)*xQuer;
     double yReturn = b + (Sxy/Sxx)*X;
-    QVector<double> d{yReturn,Sxy/Sxx};
-    return d; // Vorzeichenwechsel scheint falsch herum, weil der Nullpunkt von Bildern oben links ist
+    //QVector<double> d{yReturn,Sxy/Sxx};
+    //return d; // Vorzeichenwechsel scheint falsch herum, weil der Nullpunkt von Bildern oben links ist
+    return {yReturn,Sxy/Sxx};
 }
 
 double surface_fitting_test::getDeltaThetaForPartner(double slope, double n1, double n2)
@@ -241,24 +266,38 @@ int surface_fitting_test::getFirstValueFromBottom(QImage image, int X)
 
 QImage surface_fitting_test::thinOutSurface(QImage image)
 {
+//    QElapsedTimer timer,grandTimer;
+//    timer.start();
+//    grandTimer.start();
     QImage output = QImage(image.size(),QImage::Format_Grayscale8);
     output.fill(0);
     for(int x = 0;x<image.width();x++){
-        QVector<int> ascan = fillVectorWithAscan(image,x);
         int y=getFirstValueFromTop(image,x);
+        //qDebug()<<"getFirstValueFromTop"<<timer.nsecsElapsed();
+        //timer.restart();
         if(y!=0){
+            QVector<int> ascan = fillVectorWithAscan(image,x);
+            //qDebug()<<"Vector mit AScan gefüllt"<<timer.nsecsElapsed();
+            //timer.restart();
             double middle = getArithmicMiddle(ascan,y,arithMiddleSigma);
-            output = setPixelColor8Bit(output,x,std::round(middle),255);
+            //qDebug()<<"getArithmicMiddle"<<timer.nsecsElapsed();
+            //timer.restart();
+            output.setPixelColor(x,std::round(middle),255);
+            //output = setPixelColor8Bit(output,x,std::round(middle),255,bytesPerLine);
+            //qDebug()<<"setPixelColorQBit"<<timer.nsecsElapsed();
+            //timer.restart();
         }
     }
     for(int x = 0;x<image.width();x++){
-        QVector<int> ascan = fillVectorWithAscan(image,x);
         int y=getFirstValueFromBottom(image,x);
         if(y!=0){
+            QVector<int> ascan = fillVectorWithAscan(image,x);
             double middle = getArithmicMiddle(ascan,y,-arithMiddleSigma);
-            output = setPixelColor8Bit(output,x,std::round(middle),255);
+            //output = setPixelColor8Bit(output,x,std::round(middle),255,bytesPerLine);
+            output.setPixelColor(x,std::round(middle),255);
         }
     }
+    //qDebug()<<"Ein Surface thinned out"<<grandTimer.elapsed();
     return output;
 }
 
@@ -292,30 +331,30 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
     }
     for(int k = 0;k<numberOfAngles;k++){
         if(!useArrayFire){
-        QVector<double>rotatedPoint=QVector<double>(2);
-        double rotateBy = (2*M_PI/double(numberOfAngles))*k;
-        rotatedSurfacesThinnedOut[k] = QImage(surface.size(),QImage::Format_Grayscale8);
-        rotatedSurfacesThinnedOut[k].fill(0);
-        for(int x = 0;x<surface.width();x++){
-            for(int y = 0;y<surface.height();y++){
-                if(getColor(surface,x,y)!=0){
-                    rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(surface.width()/2.0),double(surface.height()/2.0)},rotateBy,true);
-                    int xRound = std::round(rotatedPoint[0]);
-                    int yRound = std::round(rotatedPoint[1]);
-                    for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
-                        for(int yGauss = yRound-2;yGauss<=yRound+2;yGauss++){
-                            int newInt = getColor(rotatedSurfacesThinnedOut[k],xGauss,yGauss) + int(200.0*getValueForGaussDistribution(rotatedPoint[0],rotatedPoint[1],xGauss,yGauss,1));
-                            if(newInt>255){
-                                newInt=255;
-                                qDebug()<<"Grauwert zu hoch";
+            QVector<double>rotatedPoint=QVector<double>(2);
+            double rotateBy = (2*M_PI/double(numberOfAngles))*k;
+            rotatedSurfacesThinnedOut[k] = QImage(surface.size(),QImage::Format_Grayscale8);
+            rotatedSurfacesThinnedOut[k].fill(0);
+            for(int x = 0;x<surface.width();x++){
+                for(int y = 0;y<surface.height();y++){
+                    if(getColor(surface,x,y)!=0){
+                        rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(surface.width()/2.0),double(surface.height()/2.0)},rotateBy,true);
+                        int xRound = std::round(rotatedPoint[0]);
+                        int yRound = std::round(rotatedPoint[1]);
+                        for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
+                            for(int yGauss = yRound-2;yGauss<=yRound+2;yGauss++){
+                                int newInt = getColor(rotatedSurfacesThinnedOut[k],xGauss,yGauss) + int(200.0*getValueForGaussDistribution(rotatedPoint[0],rotatedPoint[1],xGauss,yGauss,1));
+                                if(newInt>255){
+                                    newInt=255;
+                                    qDebug()<<"Grauwert zu hoch";
+                                }
+                                quint8 *dstRotSurface = (quint8*)(rotatedSurfacesThinnedOut[k].bits()+yGauss*rotatedSurfacesThinnedOut[k].bytesPerLine());
+                                dstRotSurface[xGauss] = newInt;
                             }
-                            quint8 *dstRotSurface = (quint8*)(rotatedSurfacesThinnedOut[k].bits()+yGauss*rotatedSurfacesThinnedOut[k].bytesPerLine());
-                            dstRotSurface[xGauss] = newInt;
                         }
                     }
                 }
             }
-        }
         }
         rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
         rotatedEntryPoints[k] = QVector<QVector<double>>(surface.width());
@@ -527,15 +566,17 @@ double surface_fitting_test::getExitAngle(double slope, double n1, double n2) //
     }else if((n1*qSin(qAtan(slope)))/n2>1){
         return 1.0;
     }else{
-        double gamma = -(qAtan(slope) - qAsin((n1*qSin(qAtan(slope)))/n2));
-        return gamma;
+        //double gamma = -(qAtan(slope) - qAsin((n1*qSin(qAtan(slope)))/n2));
+        //return gamma;
+        return -(qAtan(slope) - qAsin((n1*qSin(qAtan(slope)))/n2));
     }
 }
 
 double surface_fitting_test::getValueForGaussDistribution(double gammaX, double gammaY, int x, int y, double sigma)
 {
-    double value = (1/(2*M_PI*pow(sigma,2)))*exp(((-1)/(2*pow(sigma,2)))*(pow(x-gammaX,2)+pow(y-gammaY,2)));
-    return value;
+    //double value = (1/(2*M_PI*pow(sigma,2)))*exp(((-1)/(2*pow(sigma,2)))*(pow(x-gammaX,2)+pow(y-gammaY,2)));
+    //return value;
+    return (1/(2*M_PI*pow(sigma,2)))*exp(((-1)/(2*pow(sigma,2)))*(pow(x-gammaX,2)+pow(y-gammaY,2)));
 }
 
 QVector<double> surface_fitting_test::rotateImagePointTo(QVector<double> inputPoint, QVector<double> centerPoint, double rotationAngle, bool clockwise)
@@ -617,8 +658,9 @@ QVector<double> surface_fitting_test::getIntersectionPoint(QVector<double> ray, 
 
 double surface_fitting_test::linInterpolation(double x1, double x2, double y1, double y2, double x)
 {
-    double result = y1+(x2-x)*(y2-y1)/(x2-x1);
-    return result;
+//    double result = y1+(x2-x)*(y2-y1)/(x2-x1);
+//    return result;
+    return y1+(x2-x)*(y2-y1)/(x2-x1);
 }
 
 double surface_fitting_test::bilinInterpolation(double q11, double q12, double q21, double q22, double x1, double x2, double y1, double y2, double x, double y)
@@ -711,8 +753,9 @@ double surface_fitting_test::bilinInterpolFromSinogram(QImage sino, double x, do
     quint16 *dstSinoY2 = (quint16*)(sino.bits()+y2*sino.bytesPerLine());
     double q12 = dstSinoY2[x1];
     double q22 = dstSinoY2[x2];
-    double result = bilinInterpolation(q11,q12,q21,q22,x1,x2,y1,y2,x,y);
-    return result;
+    //double result = bilinInterpolation(q11,q12,q21,q22,x1,x2,y1,y2,x,y);
+    //return result;
+    return bilinInterpolation(q11,q12,q21,q22,x1,x2,y1,y2,x,y);
 }
 
 double surface_fitting_test::newBilinInterpolFromSinogram(QImage sino, double absX, double absProj)
@@ -769,7 +812,7 @@ QVector<QImage> surface_fitting_test::makeRotatedImageStack(QString path, int st
     af::array pic = af::loadImage(p,false);
     qDebug()<<"image loaded as array"<<reTimer.elapsed();
     for(int k = 0; k<stackSize;k++){
-        af::array rot = af::rotate(pic,float(k)/float(stackSize)*2*M_PI,true,AF_INTERP_BILINEAR);
+        af::array rot = af::rotate(pic,-float(k)/float(stackSize)*2*M_PI,true,AF_INTERP_BILINEAR);
         //qDebug()<<"image rotated as array"<<reTimer.elapsed();
         QString saveString = path;
         //saveString.append(QString::number(k,'g',3));
@@ -783,7 +826,56 @@ QVector<QImage> surface_fitting_test::makeRotatedImageStack(QString path, int st
         rotatedStack[k]=saveImage;
         qDebug()<<"image"<<k<<"added to stack"<<reTimer.elapsed();
     }
+//    af::array caller = af::range(stackSize);
+//    af::array counter = af::range(stackSize);
+//    af_print(caller);
+//    caller.operator/=(-float(stackSize)/2/M_PI);
+//    af_print(caller);
+//    gfor(af::seq k, stackSize){
+//        af::array rot = af::rotate(pic,caller(k).scalar<float>(),true,AF_INTERP_BILINEAR);
+//        qDebug()<<"image rotated as array"<<reTimer.elapsed();
+//        QString saveString = path;
+//        int intDummy = counter(k).scalar<int>();
+//        //saveString.append(QString::number(caller(k).scalar<float>(),'g',4));
+//        saveString.append(QString::number(intDummy));
+//        saveString.append("_buffer.png");
+//        std::string saveStr = saveString.toStdString();
+//        const char* q = saveStr.c_str();
+//        af::saveImage(q,rot);
+//        qDebug()<<"image saved"<<reTimer.elapsed();
+//        QImage saveImage;
+//        saveImage.load(saveString);
+//        rotatedStack[intDummy]=saveImage;
+//    }
+//    const char *i;
+//    volume(1,dunno.height(),dunno.width()).host(&i);
+//    QImage hosti = QImage(i);
+//    hosti.save(path+"hosti.png");
     return rotatedStack;
+}
+
+void surface_fitting_test::learningAF(int size)
+{
+    QElapsedTimer timer,timerSlow;
+    timer.start();
+    af::array test = af::range(size);
+    qDebug()<<"Array initialisiert AF"<<timer.elapsed();
+    gfor(af::seq i, size){
+        test(i)=test(i)*qSin(2);
+
+
+    }
+    qDebug()<<"Array multipliziert AF"<<timer.elapsed();
+    QVector<int> qvec(size);
+    timerSlow.start();
+    for(int i = 0; i<size;i++){
+        qvec[i]=i;
+    }
+    qDebug()<<"Array gefüllt QVec"<<timerSlow.elapsed();
+    for(int i = 0; i<size;i++){
+        qvec[i]=qvec[i]*qSin(2);
+    }
+    qDebug()<<"Array multipliziert QVec"<<timerSlow.elapsed();
 }
 
 
@@ -1216,7 +1308,26 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked()
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-    makeRotatedImageStack(inputPathHisto,800);
+//    learningAF(10000);
+//    af::array resultsAF(50000,f32);
+//    QVector<int> aScan;
+//    QVector<double> results(50000);
+//    aScan = {0,0,0,0,0,1,3,4,5,6,5,3,0,0,0,};
+//    qDebug()<<"For Schleife beginnt";
+//    for(int i = 0; i<50000;i++){
+//        results[i] = getArithmicMiddle(aScan,1,8);
+//    }
+//    gfor(af::seq i, 50000){
+//        resultsAF(i) = getArithmicMiddle(aScan,1,8);
+//    }
+//        QElapsedTimer timer;
+//        timer.start();
+//    for(int i = 0; i<10000;i++){
+//    getFirstValueFromTop(inputSurface,150);
+//}
+//    qDebug()<<"Values fertig"<<timer.elapsed();
+//    qDebug()<<"Values fertig"<<timer.nsecsElapsed();
+    makeRotatedImageStack(inputPathHisto,30);
 }
 
 void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)

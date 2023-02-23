@@ -110,9 +110,10 @@ private:
     QString nrOfProjString;
     void displayImageLeft(QImage image);
     double getArithmicMiddle(QVector<int> vec, int base, int integral);
+    //double getArithmicMiddleAF(QVector<int> vec, int base, int integral);
     QVector<int> fillVectorWithAscan(QImage image, int X);
     int getColor(QImage image, int x, int y);
-    QImage setPixelColor8Bit(QImage image, int x, int y, int value);
+    QImage setPixelColor8Bit(QImage image, int x, int y, int value, int bytesPerLine);
     QVector<double> getSlopeAtEntry(QImage image, int X, int sigma);
     QVector<double> getSlopeAtExit(QImage image, int X, int sigma);
     double getDeltaThetaForPartner(double slope, double n1, double n2);
@@ -149,6 +150,7 @@ private:
      */
     double getTransmissionGrade(double riMedium, double riSample, QVector<double> rotatedEntryPoint);
     QVector<QImage> makeRotatedImageStack(QString path, int stackSize);
+    void learningAF(int size);
 };
 
 #endif // SURFACE_FITTING_TEST_H
