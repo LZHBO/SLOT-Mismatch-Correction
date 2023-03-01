@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\oct_handling\surface_steepness\surface14</string>
+    <string>C:\Users\o.hill\Pictures\oct_handling\surface_steepness\surface19</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -290,7 +290,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\oct_handling\surface_steepness\histo14</string>
+    <string>C:\Users\o.hill\Pictures\oct_handling\surface_steepness\histo19</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">

@@ -246,8 +246,11 @@ double surface_fitting_test::getDeltaThetaForPartner(double slope, double n1, do
 }
 int surface_fitting_test::getFirstValueFromTop(QImage image, int X)
 {
+    QElapsedTimer timer;
+    timer.start();
     for(int y = 0;y<image.height();y++){
         if(getColor(image,X,y)!=0){
+            //qDebug()<<"First Value from top nsec:"<<timer.nsecsElapsed();
             return y;
         }
     }
@@ -382,13 +385,13 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         }
                     }
                     if(success == false){
-                        qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<k<<x;
+                        //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<k<<x;
                         if(getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
                             QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X));
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
-                                qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                                //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
                                 rotatedEntryPoints[k][x][2] = intersection[2];
                                 success = true;
                             }
@@ -399,7 +402,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X&&intersection[0]<X+1){
                                 rotatedEntryPoints[k][x][2] = intersection[2];
-                                qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                                //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                                 success = true;
                             }else{
                                 X--;
@@ -421,7 +424,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         }
                     }
                     if(success == false){
-                        qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<k<<x;
+                        //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<k<<x;
                         if(getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
                             QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X));
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
@@ -446,7 +449,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         }
                     }
                 }else{
-                    qDebug()<<"Strahl wurde total reflektiert!"<<k<<x;
+                    //qDebug()<<"Strahl wurde total reflektiert!"<<k<<x;
                 }
 
                 rotatedEntryPoints[k][x].append(bufVec[1]);
@@ -856,26 +859,24 @@ QVector<QImage> surface_fitting_test::makeRotatedImageStack(QString path, int st
 
 void surface_fitting_test::learningAF(int size)
 {
-    QElapsedTimer timer,timerSlow;
-    timer.start();
-    af::array test = af::range(size);
-    qDebug()<<"Array initialisiert AF"<<timer.elapsed();
-    gfor(af::seq i, size){
-        test(i)=test(i)*qSin(2);
+    af::array a = af::randu(100, f32);  //This works
+    float *host_a = a.host<float>();
+    af::freeHost(host_a);
 
 
-    }
-    qDebug()<<"Array multipliziert AF"<<timer.elapsed();
-    QVector<int> qvec(size);
-    timerSlow.start();
-    for(int i = 0; i<size;i++){
-        qvec[i]=i;
-    }
-    qDebug()<<"Array gefüllt QVec"<<timerSlow.elapsed();
-    for(int i = 0; i<size;i++){
-        qvec[i]=qvec[i]*qSin(2);
-    }
-    qDebug()<<"Array multipliziert QVec"<<timerSlow.elapsed();
+    QVector<int> ascan = fillVectorWithAscan(inputHisto,300);  //Starting with a QVector<int>
+    std::vector<int> stdVec = ascan.toStdVector();              //Conversion to std::vector<int>
+    int toArray[1000];
+    std::copy(stdVec.begin(), stdVec.end(), toArray);           //"Conversion" to std::array
+    af::array ascanAF=af::array(1,inputHisto.height(),toArray); //Creating af::array (this works!)
+    af::array nonZero = af::where(ascanAF);
+    af::array bufArrayAF = nonZero.as(f32);
+    float *host_nonZero = bufArrayAF.host<float>();
+    qDebug()<<host_nonZero[2];
+    std::vector<float> jo = std::vector<float>(*host_nonZero);
+    QVector<float> qVec = QVector<float>::fromStdVector(jo);
+    qDebug()<<qVec;
+    af::freeHost(host_nonZero);
 }
 
 
@@ -968,13 +969,13 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                         }
                     }
                     if(success == false){
-                        qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<q<<x;
+                        //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<q<<x;
                         if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                             QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
-                                qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                                //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
                                 rotatedEntryPoints[q][x][2] = intersection[2];
                                 success = true;
                             }
@@ -985,7 +986,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X&&intersection[0]<X+1){
                                 rotatedEntryPoints[q][x][2] = intersection[2];
-                                qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                                //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                                 success = true;
                             }else{
                                 X--;
@@ -1007,7 +1008,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                         }
                     }
                     if(success == false){
-                        qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<q<<x;
+                        //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<q<<x;
                         if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                             QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
@@ -1032,7 +1033,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                         }
                     }
                 }else{
-                    qDebug()<<"Strahl wurde total reflektiert!"<<q<<x;
+                    //qDebug()<<"Strahl wurde total reflektiert!"<<q<<x;
                 }
                 if(createBScans){
                     bScan = propagateOctRayThroughHisto(rotatedHistoImages[q],bScan,double(x),rotatedEntryPoints[q][x][0],rotatedEntryPoints[q][x][1],rotatedEntryPoints[q][x][2],riMedium,riSample);
@@ -1193,7 +1194,7 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked()
                         }
                         else if(riMedium<riSample && std::abs(linInterpolation(int(newPos[0]),int(newPos[0])+1,getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])),getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])+1),newPos[0])-newPos[1])>5){
                             rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
-                            qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
+                            //qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
                             qDebug()<<rotatedEntryPoints[p][x];
                             travelledOnBackside.append({p,x});
                             dstArrSino[x] = 0;
@@ -1245,7 +1246,7 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked()
                         }
                         else if(riMedium<riSample&&std::abs(linInterpolation(int(newPos[0]),int(newPos[0])+1,getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])),getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])+1),newPos[0])-newPos[1])>5){
                             rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
-                            qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
+                            //qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
                             qDebug()<<rotatedEntryPoints[p][x];
                             travelledOnBackside.append({p,x});
                             dstArrSino[x] = 0;
@@ -1327,7 +1328,12 @@ void surface_fitting_test::on_pushButton_testMath_clicked()
 //}
 //    qDebug()<<"Values fertig"<<timer.elapsed();
 //    qDebug()<<"Values fertig"<<timer.nsecsElapsed();
-    makeRotatedImageStack(inputPathHisto,30);
+
+    af::array a = af::randu(3, f32);
+    float *host_a = a.host<float>();
+    qDebug()<<host_a[2];
+    af::freeHost(host_a);
+    learningAF(10);
 }
 
 void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)
