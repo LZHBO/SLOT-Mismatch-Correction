@@ -62,6 +62,8 @@ void surface_fitting_test::on_pushButton_loadAndDisplaySinogram_clicked()
     numberOfProjections = inputSinogram.height()-2;
     riMedium = ui->doubleSpinBox_riMedium->value();
     riSample = ui->doubleSpinBox_riSample->value();
+    targetMediumRi = ui->doubleSpinBox_varyingMediumRi->value();
+    riIncrement = ui->doubleSpinBox_mediumRiIncrement->value();
 }
 
 void surface_fitting_test::displayImageLeft(QImage image)
@@ -1577,7 +1579,7 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
         for ( int i = 0; i<stackSize;i++){
             QImage bufSinogram, bufSurface;
             if(bufSinogram.load(fileListInfoSinogram[i].absoluteFilePath())&&bufSurface.load(fileListInfoSurface[i].absoluteFilePath())){
-                numberOfProjections = bufSinogram.height();
+                numberOfProjections = bufSinogram.height()-2;
                 QImage correctedSinogram = correctExternalSinogram(bufSinogram,bufSurface, fileListInfoSurface[i].absoluteFilePath(),riMedium,riSample);
                 QString name = "korrigiertesSinogram_";
                 name.append(QString::number(i)).append(".png");
@@ -1594,5 +1596,36 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
 void surface_fitting_test::on_checkBox_useArrayFire_stateChanged(int arg1)
 {
     useArrayFire = arg1;
+}
+
+
+void surface_fitting_test::on_pushButton_varyingRiCorrection_clicked()
+{
+    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
+    QDir saveDir(folderpathSave);
+    QString savePath = saveDir.absolutePath();
+    savePath.append("/");
+    while(riMedium<=targetMediumRi){
+        numberOfProjections = inputSinogram.height()-2;
+        QImage correctedSinogram = correctExternalSinogram(inputSinogram,inputSurface,inputPathSurface,riMedium,riSample);
+        qDebug()<<"Sinogram mit medium RI"<<QString::number(riMedium,'g',3)<<"korrigiert. Ziel RI Medium ist:"<<QString::number(targetMediumRi,'g',3);
+        QString name = "korrigiertesSinogram_";
+        name.append(QString::number(riMedium,'g',4)).append(".png");
+        qDebug()<<savePath<<name;
+        correctedSinogram.save(savePath + name);
+        riMedium = riMedium + riIncrement;
+    }
+}
+
+
+void surface_fitting_test::on_doubleSpinBox_varyingMediumRi_valueChanged(double arg1)
+{
+    targetMediumRi = arg1;
+}
+
+
+void surface_fitting_test::on_doubleSpinBox_mediumRiIncrement_valueChanged(double arg1)
+{
+    riIncrement = arg1;
 }
 

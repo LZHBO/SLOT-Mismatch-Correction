@@ -35,3 +35,8 @@ else:unix: LIBS += -L$$PWD/'../../../../../Program Files/ArrayFire/v3/lib/' -laf
 
 INCLUDEPATH += $$PWD/'../../../../../Program Files/ArrayFire/v3/include'
 DEPENDPATH += $$PWD/'../../../../../Program Files/ArrayFire/v3/include'
+
+unix|win32: LIBS += -LD:/v3/lib/ -laf
+
+INCLUDEPATH += D:/v3/include
+DEPENDPATH += D:/v3/include

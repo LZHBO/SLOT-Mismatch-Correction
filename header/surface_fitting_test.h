@@ -73,6 +73,12 @@ private slots:
 
     void on_checkBox_useArrayFire_stateChanged(int arg1);
 
+    void on_pushButton_varyingRiCorrection_clicked();
+
+    void on_doubleSpinBox_varyingMediumRi_valueChanged(double arg1);
+
+    void on_doubleSpinBox_mediumRiIncrement_valueChanged(double arg1);
+
 private:
     Ui::surface_fitting_test *ui;
     QString inputPathSurface;
@@ -83,6 +89,8 @@ private:
     QString nameRI;
     double riMedium;
     double riSample;
+    double targetMediumRi;
+    double riIncrement;
     int arithMiddleSigma;
     QImage inputSurface;
     QImage inputHisto;
