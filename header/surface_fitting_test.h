@@ -79,6 +79,8 @@ private slots:
 
     void on_doubleSpinBox_mediumRiIncrement_valueChanged(double arg1);
 
+    void on_checkBox_clockwise_stateChanged(int arg1);
+
 private:
     Ui::surface_fitting_test *ui;
     QString inputPathSurface;
@@ -102,6 +104,7 @@ private:
     bool createTransmission = 0;
     bool accountForReflection = 0;
     bool useArrayFire = 0;
+    signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
 //    /**
 //     * Punkte für die der korrigierte Wert auf der Rückseite wäre, erster Eintrag Nummer der Projektion, zweiter Eintrag AScan der Projektion

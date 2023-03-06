@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\olehi\Pictures\lzh\surface4</string>
+    <string>D:\lzh\slot-simulator\surface20</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -171,7 +171,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.330000000000000</double>
+    <double>1.422000000000000</double>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_riSample">
@@ -193,7 +193,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.420000000000000</double>
+    <double>1.335000000000000</double>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_createSinogram">
@@ -290,7 +290,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\olehi\Pictures\lzh\histo4</string>
+    <string>D:\lzh\slot-simulator\histo20</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">
@@ -461,7 +461,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\olehi\Pictures\lzh\surface4\1.33_1.42_800_sinogramFromHisto</string>
+    <string>D:\lzh\slot-simulator\</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplaySinogram">
@@ -716,6 +716,22 @@
    <property name="text">
     <string>Correct input sinogram with varying 
  refractive index of medium</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="checkBox_clockwise">
+   <property name="geometry">
+    <rect>
+     <x>490</x>
+     <y>80</y>
+     <width>111</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>rotate clockwise</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
    </property>
   </widget>
  </widget>

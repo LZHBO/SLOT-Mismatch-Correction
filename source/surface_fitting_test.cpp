@@ -343,7 +343,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
             for(int x = 0;x<surface.width();x++){
                 for(int y = 0;y<surface.height();y++){
                     if(getColor(surface,x,y)!=0){
-                        rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(surface.width()/2.0),double(surface.height()/2.0)},rotateBy,true);
+                        rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(surface.width()/2.0),double(surface.height()/2.0)},rotateClockwise*rotateBy,true);
                         int xRound = std::round(rotatedPoint[0]);
                         int yRound = std::round(rotatedPoint[1]);
                         for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
@@ -494,7 +494,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         QVector<double> buf = rotateImagePointTo({double(x),rotatedEntryPoints[p][x][0]},{double(surface.width()/2),double(surface.height()/2)},deltaTheta,true);
                         double absNewX = buf[0];
                         //qDebug()<<"crash after line 447";
-                        double value = newBilinInterpolFromSinogram(sinogram,absNewX,double(p)+deltaProj);
+                        double value = newBilinInterpolFromSinogram(sinogram,absNewX,double(p)+rotateClockwise*deltaProj);
                         if(value<0){
                             //rearrangedSinogramFails.setPixelColor(x,p,Qt::cyan);
                             qDebug()<<"Wert war unter Null bei: "<<p<<x;
@@ -817,7 +817,7 @@ QVector<QImage> surface_fitting_test::makeRotatedImageStack(QString path, int st
     af::array pic = af::loadImage(p,false);
     qDebug()<<"image loaded as array"<<reTimer.elapsed();
     for(int k = 0; k<stackSize;k++){
-        af::array rot = af::rotate(pic,-float(k)/float(stackSize)*2*M_PI,true,AF_INTERP_BILINEAR);
+        af::array rot = af::rotate(pic,-rotateClockwise*float(k)/float(stackSize)*2*M_PI,true,AF_INTERP_BILINEAR);
         //qDebug()<<"image rotated as array"<<reTimer.elapsed();
         QString saveString = path;
         //saveString.append(QString::number(k,'g',3));
@@ -917,9 +917,9 @@ void surface_fitting_test::on_spinBox_slopeSigma_valueChanged(int arg1)
 
 void surface_fitting_test::on_pushButton_createSinogram_clicked()
 {
-    nameRI = QString::number(riMedium,'g',3);
+    nameRI = QString::number(riMedium,'g',4);
     nameRI.append("_");
-    nameRI.append(QString::number(riSample,'g',3));
+    nameRI.append(QString::number(riSample,'g',4));
     nameRI.append("_");
     double higherRI = riMedium;
     if(higherRI<riSample){
@@ -1098,7 +1098,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
     if(createTransmission){
         transmissionHisto.save(inputPathSurface+"\\"+nameRI+nrOfProjString+"_transmissionFromHisto.png");
     }
-    ui->pushButton_correctSinogram->setEnabled(true);
     qDebug()<<"jo";
 }
 
@@ -1133,7 +1132,7 @@ void surface_fitting_test::on_spinBox_rotateDisplayImageBy_valueChanged(int arg1
     for(int x = 0; x<inputSurface.width();x++){
         for(int y = 0; y<inputSurface.height();y++){
             if(getColor(inputSurface,x,y)!=0){
-                QVector<double> newPixel = rotateImagePointTo({double(x),double(y)},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},qDegreesToRadians(double(arg1)),true);
+                QVector<double> newPixel = rotateImagePointTo({double(x),double(y)},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},rotateClockwise*qDegreesToRadians(double(arg1)),true);
                 int xRound = std::round(newPixel[0]);
                 int yRound = std::round(newPixel[1]);
                 for(int x = xRound-2;x<=xRound+2;x++){
@@ -1155,7 +1154,7 @@ void surface_fitting_test::on_spinBox_rotateDisplayImageBy_valueChanged(int arg1
 }
 
 
-void surface_fitting_test::on_pushButton_correctSinogram_clicked()
+void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion veraltet
 {
     QElapsedTimer reTimer;
     reTimer.start();
@@ -1331,11 +1330,9 @@ void surface_fitting_test::on_pushButton_testMath_clicked()
 //    qDebug()<<"Values fertig"<<timer.elapsed();
 //    qDebug()<<"Values fertig"<<timer.nsecsElapsed();
 
-    af::array a = af::randu(3, f32);
-    float *host_a = a.host<float>();
-    qDebug()<<host_a[2];
-    af::freeHost(host_a);
-    learningAF(10);
+double db = 0.1;
+int i = 7;
+qDebug()<<db*i;
 }
 
 void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)
@@ -1379,7 +1376,7 @@ void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
             for(int x = 0;x<inputSurface.width();x++){
                 for(int y = 0;y<inputSurface.height();y++){
                     if(getColor(inputSurface,x,y)!=0){
-                        rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},rotateBy,true);
+                        rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},rotateClockwise*rotateBy,true);
                         int xRound = std::round(rotatedPoint[0]);
                         int yRound = std::round(rotatedPoint[1]);
                         for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
@@ -1405,7 +1402,7 @@ void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
                 for(int y = 0;y<inputHisto.height();y++){
                     histoColor = getColor(inputHisto,x,y);
                     if(histoColor!=0){
-                        QVector<double> newPixel = rotateImagePointTo({double(x),double(y)},{double(inputHisto.width()/2.0),double(inputHisto.height()/2.0)},rotationAngleHisto,true);
+                        QVector<double> newPixel = rotateImagePointTo({double(x),double(y)},{double(inputHisto.width()/2.0),double(inputHisto.height()/2.0)},rotateClockwise*rotationAngleHisto,true);
                         int xRound = std::round(newPixel[0]);
                         int yRound = std::round(newPixel[1]);
                         for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
@@ -1467,7 +1464,7 @@ void surface_fitting_test::on_pushButton_newCorrection_clicked()
                         double deltaProj = deltaTheta*double(numberOfProjections)/(2*M_PI);
                         QVector<double> buf = rotateImagePointTo({double(x),rotatedEntryPoints[p][x][0]},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},deltaTheta,true);
                         double absNewX = buf[0];
-                        double value = newBilinInterpolFromSinogram(sinogramHisto,absNewX,double(p)+deltaProj);
+                        double value = newBilinInterpolFromSinogram(sinogramHisto,absNewX,double(p)+rotateClockwise*deltaProj);
                         if(value<0){
                             rearrangedSinogramFails.setPixelColor(x,p,Qt::cyan);
                             qDebug()<<"Wert war unter Null bei: "<<p<<x;
@@ -1608,7 +1605,7 @@ void surface_fitting_test::on_pushButton_varyingRiCorrection_clicked()
     while(riMedium<=targetMediumRi){
         numberOfProjections = inputSinogram.height()-2;
         QImage correctedSinogram = correctExternalSinogram(inputSinogram,inputSurface,inputPathSurface,riMedium,riSample);
-        qDebug()<<"Sinogram mit medium RI"<<QString::number(riMedium,'g',3)<<"korrigiert. Ziel RI Medium ist:"<<QString::number(targetMediumRi,'g',3);
+        qDebug()<<"Sinogram mit medium RI"<<QString::number(riMedium,'g',4)<<"korrigiert. Ziel RI Medium ist:"<<QString::number(targetMediumRi,'g',4);
         QString name = "korrigiertesSinogram_";
         name.append(QString::number(riMedium,'g',4)).append(".png");
         qDebug()<<savePath<<name;
@@ -1627,5 +1624,16 @@ void surface_fitting_test::on_doubleSpinBox_varyingMediumRi_valueChanged(double 
 void surface_fitting_test::on_doubleSpinBox_mediumRiIncrement_valueChanged(double arg1)
 {
     riIncrement = arg1;
+}
+
+
+void surface_fitting_test::on_checkBox_clockwise_stateChanged(int arg1)
+{
+    if(arg1==0){
+        rotateClockwise = -1;
+    }else{
+        rotateClockwise = 1;
+    }
+    qDebug()<<rotateClockwise;
 }
 
