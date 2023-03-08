@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -12,12 +12,14 @@ SOURCES += \
     source/dejitter.cpp \
     source/main.cpp \
     source/mainwindow.cpp \
-    source/surface_fitting_test.cpp
+    source/surface_fitting_test.cpp \
+    source/threadboi.cpp
 
 HEADERS += \
     header/dejitter.h \
     header/mainwindow.h \
-    header/surface_fitting_test.h
+    header/surface_fitting_test.h \
+    header/threadboi.h
 
 FORMS += \
     ui/dejitter.ui \

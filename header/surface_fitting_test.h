@@ -13,6 +13,9 @@
 #include <QRandomGenerator>
 #include <QFileDialog>
 #include <arrayfire.h>
+#include "header/threadboi.h"
+#include <QtConcurrent>
+#include <QFuture>
 
 
 
@@ -81,8 +84,15 @@ private slots:
 
     void on_checkBox_clockwise_stateChanged(int arg1);
 
+    void on_pushButton_startThread_clicked();
+
+    void on_pushButton_stopThread_clicked();
+
+    void on_spinBox_nrOfProjections_valueChanged(int arg1);
+
 private:
     Ui::surface_fitting_test *ui;
+    threadBoi thready;
     QString inputPathSurface;
     QString inputPathHisto;
     QString inputPathSinogram;
@@ -162,6 +172,12 @@ private:
     double getTransmissionGrade(double riMedium, double riSample, QVector<double> rotatedEntryPoint);
     QVector<QImage> makeRotatedImageStack(QString path, int stackSize);
     void learningAF(int size);
+
+public slots:
+    void newNumber(QString name, int number, QString threadID);
+    void fillInThinnedSurface(QImage surface, int i);
+signals:
+    void on_stop();
 };
 
 #endif // SURFACE_FITTING_TEST_H

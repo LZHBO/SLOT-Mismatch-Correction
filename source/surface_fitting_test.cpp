@@ -10,6 +10,7 @@ surface_fitting_test::surface_fitting_test(QWidget *parent) :
 
 surface_fitting_test::~surface_fitting_test()
 {
+    emit on_stop();
     delete ui;
 }
 
@@ -33,6 +34,7 @@ void surface_fitting_test::on_pushButton_loadAndDisplay_clicked()
     displayImageLeft(inputSurface);
     riMedium = ui->doubleSpinBox_riMedium->value();
     riSample = ui->doubleSpinBox_riSample->value();
+    numberOfProjections = ui->spinBox_nrOfProjections->value();
 }
 
 void surface_fitting_test::on_pushButton_loadAndDisplaySinogram_clicked()
@@ -829,7 +831,7 @@ QVector<QImage> surface_fitting_test::makeRotatedImageStack(QString path, int st
         QImage saveImage;
         saveImage.load(saveString);
         rotatedStack[k]=saveImage;
-        qDebug()<<"image"<<k<<"added to stack"<<reTimer.elapsed();
+        //qDebug()<<"image"<<k<<"added to stack"<<reTimer.elapsed();
     }
 //    af::array caller = af::range(stackSize);
 //    af::array counter = af::range(stackSize);
@@ -856,6 +858,7 @@ QVector<QImage> surface_fitting_test::makeRotatedImageStack(QString path, int st
 //    volume(1,dunno.height(),dunno.width()).host(&i);
 //    QImage hosti = QImage(i);
 //    hosti.save(path+"hosti.png");
+    qDebug()<<"Rotation mit AF fertig." <<reTimer.elapsed();
     return rotatedStack;
 }
 
@@ -879,6 +882,18 @@ void surface_fitting_test::learningAF(int size)
     QVector<float> qVec = QVector<float>::fromStdVector(jo);
     qDebug()<<qVec;
     af::freeHost(host_nonZero);
+}
+
+void surface_fitting_test::newNumber(QString name, int number, QString threadID)
+{
+    qDebug()<<"From dialog: " <<name << number << threadID;
+    ui->lineEdit_threadedOutput->setText(name + " " + QString::number(number));
+}
+
+void surface_fitting_test::fillInThinnedSurface(QImage surface, int i)
+{
+    rotatedSurfacesThinnedOut[i]=surface;
+    qDebug()<<"Thinned out surface in Liste eingetragen!!"<<i;
 }
 
 
@@ -1635,5 +1650,47 @@ void surface_fitting_test::on_checkBox_clockwise_stateChanged(int arg1)
         rotateClockwise = 1;
     }
     qDebug()<<rotateClockwise;
+}
+
+
+void surface_fitting_test::on_pushButton_startThread_clicked()
+{
+    connect(&thready,&threadBoi::thinnedOutSurface,this,&surface_fitting_test::fillInThinnedSurface);
+    //    connect(this,&surface_fitting_test::on_stop,&thready,&threadBoi::stop);
+    //    QFuture<void> test = QtConcurrent::run(&this->thready,&threadBoi::start,QString("Karl"));
+    //    QThread::msleep(100);
+    //    QFuture<void> test2 = QtConcurrent::run(&this->thready,&threadBoi::start,QString("Schnegger"));
+    //    QThread::msleep(100);
+    //    QFuture<void> test3 = QtConcurrent::run(&this->thready,&threadBoi::start,QString("Schimmel"));
+    QElapsedTimer timmer;
+    rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
+    qDebug()<<"Gleich gehts los mit Multithreading!!";
+    timmer.start();
+    QFuture<void> warte;
+    for(int i = 0; i<numberOfProjections;i++){
+        warte = QtConcurrent::run(&this->thready,&threadBoi::thinOutSurfaceThreaded,rotatedSurfacesThinnedOut[i],i);
+    }
+    //while schleife etc
+    qDebug()<<"Multithreading dauerte:"<<timmer.elapsed();
+    rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
+    timmer.restart();
+    for(int i = 0; i<numberOfProjections;i++){
+        rotatedSurfacesThinnedOut[i]=thinOutSurface(rotatedSurfacesThinnedOut[i]);
+    }
+    qDebug()<<"Konventionell dauerte:"<<timmer.elapsed();
+    //    QImage rando = QtConcurrent::run(&this->thready,&threadBoi::thinOutSurfaceThreaded,inputSurface);
+    //    displayImageLeft(rando);
+}
+
+
+void surface_fitting_test::on_pushButton_stopThread_clicked()
+{
+    emit on_stop();
+}
+
+
+void surface_fitting_test::on_spinBox_nrOfProjections_valueChanged(int arg1)
+{
+    numberOfProjections = arg1;
 }
 
