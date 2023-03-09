@@ -5,6 +5,7 @@
 #include <QPixmap>
 #include <QDebug>
 #include <QVector>
+#include <QList>
 #include <cmath>
 #include <math.h>
 #include <QtMath>
@@ -16,6 +17,7 @@
 #include "header/threadboi.h"
 #include <QtConcurrent>
 #include <QFuture>
+#include <QFutureWatcher>
 
 
 
@@ -90,6 +92,8 @@ private slots:
 
     void on_spinBox_nrOfProjections_valueChanged(int arg1);
 
+    void on_checkBox_useMultiThreading_stateChanged(int arg1);
+
 private:
     Ui::surface_fitting_test *ui;
     threadBoi thready;
@@ -114,6 +118,7 @@ private:
     bool createTransmission = 0;
     bool accountForReflection = 0;
     bool useArrayFire = 0;
+    bool useMultiThreading = 0;
     signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
 //    /**

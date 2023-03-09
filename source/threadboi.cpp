@@ -16,7 +16,12 @@ void threadBoi::start(QString name)
     }
 }
 
-void threadBoi::thinOutSurfaceThreaded(QImage surface, int i)
+void threadBoi::getRotatedSurfaces(QVector<QImage> rotatedSurfaces)
+{
+    rotatedSurfacesInThreadBoi = rotatedSurfaces;
+}
+
+int threadBoi::thinOutSurfaceThreaded(QImage &surface)
 {
     QImage output = QImage(surface.size(),QImage::Format_Grayscale8);
     output.fill(0);
@@ -36,9 +41,19 @@ void threadBoi::thinOutSurfaceThreaded(QImage surface, int i)
             output.setPixelColor(x,std::round(middle),255);
         }
     }
-    emit thinnedOutSurface(output,i);
-    //return output;
+    surface = output;
+    //emit thinnedOutSurface(output,i);
+    return 1;
 }
+
+int threadBoi::propagateRays(dings &pair)
+{
+    pair.rotPoints.resize(0);
+    pair.rotSurf.fill(0);
+    return 1;
+}
+
+
 void threadBoi::stop()
 {
     mStop = true;

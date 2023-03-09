@@ -333,8 +333,24 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
     int numberOfAngles = sinogram.height()-2;
     rotatedSurfacesThinnedOut = QVector<QImage>(numberOfAngles);
     rotatedEntryPoints = QVector<QVector<QVector<double>>>(numberOfAngles);
+    QVector<double> pointers(numberOfAngles);
     if(useArrayFire){
         rotatedSurfacesThinnedOut = makeRotatedImageStack(surfacePath, numberOfAngles);
+    }
+    if(useMultiThreading){
+        QtConcurrent::blockingMap(rotatedSurfacesThinnedOut,&threadBoi::thinOutSurfaceThreaded);
+        qDebug()<<&rotatedSurfacesThinnedOut;
+        thready.getRotatedSurfaces(rotatedSurfacesThinnedOut);
+        struct pair{
+            QImage rotSurf;
+            QVector<QVector<double>> rotPoints;
+        };
+        QVector<pair> pairs(numberOfAngles);
+        for(int k = 0;k<numberOfAngles;k++){
+            pairs[k] = {rotatedSurfacesThinnedOut[k],rotatedEntryPoints[k]};
+        }
+        //QtConcurrent::blockingMap(pairs,&threadBoi::propagateRays); //der dreck will nicht compilen
+        //wie zum fick passe ich einen pointer auf einen qvector?!?!?!?!?!?!?!?!??!?!?!
     }
     for(int k = 0;k<numberOfAngles;k++){
         if(!useArrayFire){
@@ -363,7 +379,9 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                 }
             }
         }
+        if(!useMultiThreading){
         rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
+        }
         rotatedEntryPoints[k] = QVector<QVector<double>>(surface.width());
         rotatedEntryPoints[k][0]={0,0,0,0};
         //Strahl durch die "Projektion" propagieren
@@ -1375,8 +1393,12 @@ void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
     if(useArrayFire){
         qDebug()<<"Surfaces rotated"<<bigTimer.elapsed();
         rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
-        for(int k = 0; k<numberOfProjections;k++){
-            rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
+        if(useMultiThreading){
+            QtConcurrent::blockingMap(rotatedSurfacesThinnedOut,&threadBoi::thinOutSurfaceThreaded);
+        }else{
+            for(int k = 0; k<numberOfProjections;k++){
+                rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
+            }
         }
         qDebug()<<"Surfaces thinned out"<<bigTimer.elapsed();
         rotatedHistoImages = makeRotatedImageStack(inputPathHisto,numberOfProjections);
@@ -1556,7 +1578,7 @@ void surface_fitting_test::on_checkBox_accountForReflection_stateChanged(int arg
 
 void surface_fitting_test::on_pushButton_chooseSurfaceDirectory_clicked()
 {
-    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"E:/mSLOT/");
     QDir dir(folderpathSurfaceStack);
     fileListInfoSurface = dir.entryInfoList();
 
@@ -1568,7 +1590,7 @@ void surface_fitting_test::on_pushButton_chooseSurfaceDirectory_clicked()
 
 void surface_fitting_test::on_pushButton_ChooseSinogramDirectory_clicked()
 {
-    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"E:/mSLOT/");
     QDir dir(folderpathSurfaceStack);
     fileListInfoSinogram = dir.entryInfoList();
     fileListInfoSinogram.removeFirst();
@@ -1581,7 +1603,7 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
     riMedium = ui->doubleSpinBox_riMedium->value();
     riSample = ui->doubleSpinBox_riSample->value();
     arithMiddleSigma = ui->spinBox_arithMiddleSigma->value();
-    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
+    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"E:/mSLOT/");
     QDir saveDir(folderpathSave);
     QString savePath = saveDir.absolutePath();
     savePath.append("/");
@@ -1613,7 +1635,7 @@ void surface_fitting_test::on_checkBox_useArrayFire_stateChanged(int arg1)
 
 void surface_fitting_test::on_pushButton_varyingRiCorrection_clicked()
 {
-    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
+    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"E:/mSLOT/");
     QDir saveDir(folderpathSave);
     QString savePath = saveDir.absolutePath();
     savePath.append("/");
@@ -1666,18 +1688,17 @@ void surface_fitting_test::on_pushButton_startThread_clicked()
     rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
     qDebug()<<"Gleich gehts los mit Multithreading!!";
     timmer.start();
-    QFuture<void> warte;
-    for(int i = 0; i<numberOfProjections;i++){
-        warte = QtConcurrent::run(&this->thready,&threadBoi::thinOutSurfaceThreaded,rotatedSurfacesThinnedOut[i],i);
-    }
+    QtConcurrent::blockingMap(rotatedSurfacesThinnedOut,&threadBoi::thinOutSurfaceThreaded);
+    //waitFor[numberOfProjections].waitForFinished();
     //while schleife etc
     qDebug()<<"Multithreading dauerte:"<<timmer.elapsed();
-    rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
-    timmer.restart();
-    for(int i = 0; i<numberOfProjections;i++){
-        rotatedSurfacesThinnedOut[i]=thinOutSurface(rotatedSurfacesThinnedOut[i]);
-    }
-    qDebug()<<"Konventionell dauerte:"<<timmer.elapsed();
+    displayImageLeft(rotatedSurfacesThinnedOut[300]);
+//    rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
+//    timmer.restart();
+//    for(int i = 0; i<numberOfProjections;i++){
+//        rotatedSurfacesThinnedOut[i]=thinOutSurface(rotatedSurfacesThinnedOut[i]);
+//    }
+//    qDebug()<<"Konventionell dauerte:"<<timmer.elapsed();
     //    QImage rando = QtConcurrent::run(&this->thready,&threadBoi::thinOutSurfaceThreaded,inputSurface);
     //    displayImageLeft(rando);
 }
@@ -1692,5 +1713,16 @@ void surface_fitting_test::on_pushButton_stopThread_clicked()
 void surface_fitting_test::on_spinBox_nrOfProjections_valueChanged(int arg1)
 {
     numberOfProjections = arg1;
+}
+
+
+void surface_fitting_test::on_checkBox_useMultiThreading_stateChanged(int arg1)
+{
+    if(arg1==0){
+        useMultiThreading = false;
+    }else{
+        useMultiThreading = true;
+    }
+    qDebug()<<"Multithreading aktivier: "<<useMultiThreading;
 }
 

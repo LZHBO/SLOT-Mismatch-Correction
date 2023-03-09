@@ -10,6 +10,7 @@
 #include <QtMath>
 #include <QElapsedTimer>
 #include <QVector>
+#include <QList>
 
 class threadBoi : public QObject
 {
@@ -17,7 +18,13 @@ class threadBoi : public QObject
 public:
     explicit threadBoi(QObject *parent = nullptr);
     void start(QString name);
-    void thinOutSurfaceThreaded(QImage surface, int i);
+    void getRotatedSurfaces(QVector<QImage> rotatedSurfaces);
+    static int thinOutSurfaceThreaded(QImage &surface);
+    struct dings{
+        QImage rotSurf;
+        QVector<QVector<double>> rotPoints;
+    };
+    static int propagateRays(dings &pair);
 
 signals:
     void on_number(QString name, int number, QString threadID);
@@ -26,12 +33,15 @@ public slots:
     void stop();
 
 private:
+
     bool mStop;
-    int getFirstValueFromTop(QImage image, int X);
-    int getFirstValueFromBottom(QImage image, int X);
-    int getColor(QImage image, int x, int y);
-    double getArithmicMiddle(QVector<int> vec, int base, int integral);
-    QVector<int> fillVectorWithAscan(QImage image, int X);
+    QVector<QImage> rotatedSurfacesInThreadBoi;
+    QVector<QVector<QVector<double>>> rotatedEntryPointsInThreadBoi;
+    static int getFirstValueFromTop(QImage image, int X);
+    static int getFirstValueFromBottom(QImage image, int X);
+    static int getColor(QImage image, int x, int y);
+    static double getArithmicMiddle(QVector<int> vec, int base, int integral);
+    static QVector<int> fillVectorWithAscan(QImage image, int X);
 
 };
 

@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\oct_handling\surface_steepness\surface19</string>
+    <string>E:\mSLOT\MSQ_D1\2023_03_06\surface\MSQ_D1_photo_diode_deinterlaced_dejittert_corr_output001</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -171,7 +171,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.422000000000000</double>
+    <double>1.330000000000000</double>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_riSample">
@@ -193,7 +193,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.335000000000000</double>
+    <double>1.420000000000000</double>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_createSinogram">
@@ -290,7 +290,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>D:\lzh\slot-simulator\histo20</string>
+    <string>E:\mSLOT\MSQ_A2\2023_03_07</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">
@@ -461,7 +461,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>D:\lzh\slot-simulator\</string>
+    <string>E:\mSLOT\MSQ_D1\2023_03_06\sinograms\MSQ_D1_bottom_PMT_deinterlaced_dejittert_corr001</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplaySinogram">
@@ -768,6 +768,19 @@
      <width>113</width>
      <height>20</height>
     </rect>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="checkBox_useMultiThreading">
+   <property name="geometry">
+    <rect>
+     <x>1160</x>
+     <y>180</y>
+     <width>111</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Use Multithreading</string>
    </property>
   </widget>
  </widget>
