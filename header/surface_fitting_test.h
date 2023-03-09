@@ -29,9 +29,18 @@ class surface_fitting_test : public QWidget
 {
     Q_OBJECT
 
+    struct surfaceInfo{
+        QImage thinnedOut;
+        QVector<QVector<double>> entryPoints;
+    };
+
 public:
     explicit surface_fitting_test(QWidget *parent = nullptr);
+    static int  propagateRaysMulti(QImage thinnedOutSurface);
     ~surface_fitting_test();
+    static double riMediumMT;
+    static double riSampleMT;
+    static int slopeSigmaMT;
 
 private slots:
     void on_pushButton_loadAndDisplay_clicked();
@@ -93,6 +102,7 @@ private slots:
     void on_spinBox_nrOfProjections_valueChanged(int arg1);
 
     void on_checkBox_useMultiThreading_stateChanged(int arg1);
+
 
 private:
     Ui::surface_fitting_test *ui;
@@ -177,6 +187,18 @@ private:
     double getTransmissionGrade(double riMedium, double riSample, QVector<double> rotatedEntryPoint);
     QVector<QImage> makeRotatedImageStack(QString path, int stackSize);
     void learningAF(int size);
+    QVector<surfaceInfo> makeStructVector(QVector<QImage> imageList, QVector<QVector<QVector<double>>> pointList);
+    static int propagateRayMultiThreaded(surfaceInfo &surfaceList);
+
+    static int getFirstValueFromTopStatic(QImage image, int X);
+    static int getFirstValueFromBottomStatic(QImage image, int X);
+    static int getColorStatic(QImage image, int x, int y);
+    static QVector<double> getSlopeAtEntryStatic(QImage image, int X, int sigma);
+    static double getExitAngleStatic(double slope, double n1, double n2);
+    static QVector<double> parameterizeFromPointsStatic(double x1, double y1, double x2, double y2);
+    static QVector<double> parameterizeFromAngleStatic(double x, double y, double angle);
+    static QVector<double> getIntersectionPointStatic(QVector<double> ray, QVector<double> surface);
+
 
 public slots:
     void newNumber(QString name, int number, QString threadID);

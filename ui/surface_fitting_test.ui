@@ -507,6 +507,9 @@
    </property>
   </widget>
   <widget class="QCheckBox" name="checkBox_accountForReflection">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>670</x>
