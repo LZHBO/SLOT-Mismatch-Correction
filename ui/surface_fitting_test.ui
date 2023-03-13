@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\mSLOT\MSQ_D1\2023_03_06\surface\MSQ_D1_photo_diode_deinterlaced_dejittert_corr_output001</string>
+    <string>E:\mSLOT\MSQ_A2\2023_03_07\surface\surface_MSQ_A2_001</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -461,7 +461,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\mSLOT\MSQ_D1\2023_03_06\sinograms\MSQ_D1_bottom_PMT_deinterlaced_dejittert_corr001</string>
+    <string>E:\mSLOT\MSQ_A2\2023_03_07\sinogram\sinogram_MSQ_A2_001</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplaySinogram">
@@ -508,7 +508,7 @@
   </widget>
   <widget class="QCheckBox" name="checkBox_accountForReflection">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="geometry">
     <rect>
