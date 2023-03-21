@@ -104,6 +104,10 @@ private slots:
     void on_checkBox_useMultiThreading_stateChanged(int arg1);
 
 
+    void on_radioButton_pmt_toggled(bool checked);
+
+    void on_radioButton_PD_toggled(bool checked);
+
 private:
     Ui::surface_fitting_test *ui;
     threadBoi thready;
@@ -129,6 +133,7 @@ private:
     bool accountForReflection = 0;
     bool useArrayFire = 0;
     bool useMultiThreading = 0;
+    bool correctingPmtSinogram = true;
     signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
 //    /**

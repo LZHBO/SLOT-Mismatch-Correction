@@ -499,12 +499,20 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
     QElapsedTimer reTimer;
     reTimer.start();
     QImage rearrangedExternalSinogram = QImage(sinogram.size(),QImage::Format_Grayscale16);
-    rearrangedExternalSinogram.fill(0);
+    if(correctingPmtSinogram){
+        rearrangedExternalSinogram.fill(0);
+    }else{
+        rearrangedExternalSinogram.fill(36000);
+    }
     QVector<QVector<int>> travelledOnBackside;
     for(int p = 0; p<numberOfAngles;p++){
         quint16 *dstArrSino = (quint16*)(rearrangedExternalSinogram.bits()+p*rearrangedExternalSinogram.bytesPerLine());
         for(int x = 0; x<surface.width();x++){
             if(rotatedEntryPoints[p][x][0]!=0){
+                if(!correctingPmtSinogram){
+                    quint16 *dstSinoStraight = (quint16*)(sinogram.bits()+p*sinogram.bytesPerLine());
+                    dstArrSino[x]=dstSinoStraight[x];
+                }
                 if(rotatedEntryPoints[p][x][1]==0){                                                  //bei senkrechten Strahlen wird nichts verschoben!
                     quint16 *dstSinoStraight = (quint16*)(sinogram.bits()+p*sinogram.bytesPerLine());
                     dstArrSino[x]=dstSinoStraight[x];
@@ -1957,3 +1965,19 @@ void surface_fitting_test::on_checkBox_useMultiThreading_stateChanged(int arg1)
 
 
 
+
+void surface_fitting_test::on_radioButton_pmt_toggled(bool checked)
+{
+    if(checked){
+        correctingPmtSinogram = true;
+        qDebug()<<"PMT Sinogram wird korrigiert:"<<correctingPmtSinogram;
+    }
+}
+
+void surface_fitting_test::on_radioButton_PD_toggled(bool checked)
+{
+    if(checked){
+        correctingPmtSinogram = false;
+        qDebug()<<"PMT Sinogram wird korrigiert:"<<correctingPmtSinogram;
+    }
+}
