@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\mSLOT\MSQ_A2\2023_03_07\surface\surface_MSQ_A2_001</string>
+    <string>E:\usaf-target\simulations\usaf-kreis</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -171,7 +171,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.330000000000000</double>
+    <double>1.000000000000000</double>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_riSample">
@@ -290,7 +290,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\mSLOT\MSQ_A2\2023_03_07</string>
+    <string>E:\usaf-target\simulations\usaf</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">

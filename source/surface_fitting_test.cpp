@@ -1192,129 +1192,184 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
     double higherRI = riMedium;
     if(higherRI<riSample){
         higherRI = riSample;
-    }
+    }    riMediumMT = riMedium;
+    riSampleMT = riSample;
+    QElapsedTimer externalCorrectionTimer;
+    externalCorrectionTimer.start();
+    int slopeSigma = ui->spinBox_slopeSigma->value();
+    slopeSigmaMT = ui->spinBox_slopeSigma->value();
+    QVector<surfaceInfo> surfaceList;
     bool createBScans = ui->checkBox_createBScans->isChecked();
     createTransmission = ui->checkBox_createTransmission->isChecked();
     sinogramHisto = QImage(inputSurface.width(),numberOfProjections+2,QImage::Format_Grayscale16);
     sinogramHisto.fill(0);
     transmissionHisto = sinogramHisto;
     rotatedEntryPoints = QVector<QVector<QVector<double>>>(numberOfProjections);
-    for(int q = 0;q<numberOfProjections;q++){
-        qDebug()<<"new Projection"<<q;
-        if(createBScans){
-            bScan = QImage(inputSurface.width(),inputSurface.height()*higherRI,QImage::Format_Grayscale8);
-            bScan.fill(0);
+    if(useMultiThreading){
+        for(int k = 0;k<numberOfProjections;k++){
+            rotatedEntryPoints[k]=QVector<QVector<double>>(rotatedSurfacesThinnedOut[0].width());
         }
-        quint16 *dstTrans = (quint16*)(transmissionHisto.bits()+q*transmissionHisto.bytesPerLine());
-        if(createTransmission){
-            dstTrans[0]= int(65535);
+        surfaceList = makeStructVector(rotatedSurfacesThinnedOut,rotatedEntryPoints);
+        QtConcurrent::blockingMap(surfaceList,&surface_fitting_test::propagateRayMultiThreaded);
+        qDebug()<<"Strahlen wurden MT propagiert"<<externalCorrectionTimer.restart();
+        for(int k=0; k<surfaceList.size();k++){
+            rotatedEntryPoints[k] = surfaceList[k].entryPoints;
         }
-        quint16 *dstHisto = (quint16*)(sinogramHisto.bits()+q*sinogramHisto.bytesPerLine());
-        rotatedEntryPoints[q] = QVector<QVector<double>>(inputSurface.width());
-        rotatedEntryPoints[q][0]={0,0,0};
-        for(int x = 1;x<inputSurface.width();x++){
-            rotatedEntryPoints[q][x]={0,0};
-            if(createTransmission){
-                if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x)==0){
-                    dstTrans[x]= int(65535);
-                }
+    }else{
+        for(int q = 0;q<numberOfProjections;q++){
+            qDebug()<<"new Projection"<<q;
+            if(createBScans){
+                bScan = QImage(inputSurface.width(),inputSurface.height()*higherRI,QImage::Format_Grayscale8);
+                bScan.fill(0);
             }
-            if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x-1)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
-                QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[q],x,ui->spinBox_slopeSigma->value());
-                double exitAngle = getExitAngle(bufVec[1],riMedium,riSample);
-                rotatedEntryPoints[q][x] = {bufVec[0],exitAngle};
-                rotatedEntryPoints[q][x].append(0);
-                if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
-                    int X=x;
-                    bool success = false;
-                    while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X+1)>0){
-                        QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X), X+1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X+1));
-                        QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
-                        QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                        if(intersection[0]>=X&&intersection[0]<X+1){
-                            rotatedEntryPoints[q][x][2] = intersection[2];
-                            success = true;
-                        }else{
-                            X++;
-                        }
+            quint16 *dstTrans = (quint16*)(transmissionHisto.bits()+q*transmissionHisto.bytesPerLine());
+            if(createTransmission){
+                dstTrans[0]= int(65535);
+            }
+            quint16 *dstHisto = (quint16*)(sinogramHisto.bits()+q*sinogramHisto.bytesPerLine());
+            rotatedEntryPoints[q] = QVector<QVector<double>>(inputSurface.width());
+            rotatedEntryPoints[q][0]={0,0,0};
+            for(int x = 1;x<inputSurface.width();x++){
+                rotatedEntryPoints[q][x]={0,0};
+                if(createTransmission){
+                    if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x)==0){
+                        dstTrans[x]= int(65535);
                     }
-                    if(success == false){
-                        //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<q<<x;
-                        if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
-                            QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
-                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
-                            QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                            if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
-                                //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                                rotatedEntryPoints[q][x][2] = intersection[2];
-                                success = true;
-                            }
-                        }
-                        while(success == false && X>=x){
-                            QVector<double> surfaceVector = parameterizeFromPoints(X-1, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X-1), X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X));
+                }
+                if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x-1)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
+                    QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[q],x,ui->spinBox_slopeSigma->value());
+                    double exitAngle = getExitAngle(bufVec[1],riMedium,riSample);
+                    rotatedEntryPoints[q][x] = {bufVec[0],exitAngle};
+                    rotatedEntryPoints[q][x].append(0);
+                    if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
+                        int X=x;
+                        bool success = false;
+                        while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X+1)>0){
+                            QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X), X+1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X+1));
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X&&intersection[0]<X+1){
                                 rotatedEntryPoints[q][x][2] = intersection[2];
-                                //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
-                                success = true;
-                            }else{
-                                X--;
-                            }
-                        }
-                    }
-                }else if(exitAngle<0&&exitAngle>-1.0){  //Strahl wird nach links abgelenkt
-                    int X=x;
-                    bool success = false;
-                    while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X-1) > 0){
-                        QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X), X-1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X-1));
-                        QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
-                        QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                        if(intersection[0]<=X&&intersection[0]>X-1){
-                            rotatedEntryPoints[q][x][2] = intersection[2];
-                            success = true;
-                        }else{
-                            X--;
-                        }
-                    }
-                    if(success == false){
-                        //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<q<<x;
-                        if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
-                            QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
-                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
-                            QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                            if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
-                                //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                                rotatedEntryPoints[q][x][2] = intersection[2];
-                                success = true;
-                            }
-                        }
-                        while(success == false && X<=x){
-                            QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X+1, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X+1));
-                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
-                            QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                            if(intersection[0]>=X&&intersection[0]<X+1){
-                                rotatedEntryPoints[q][x][2] = intersection[2];
-                                //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                                 success = true;
                             }else{
                                 X++;
                             }
                         }
+                        if(success == false){
+                            //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<q<<x;
+                            if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
+                                QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
+                                QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                                QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                                if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
+                                    //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                                    rotatedEntryPoints[q][x][2] = intersection[2];
+                                    success = true;
+                                }
+                            }
+                            while(success == false && X>=x){
+                                QVector<double> surfaceVector = parameterizeFromPoints(X-1, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X-1), X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X));
+                                QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                                QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                                if(intersection[0]>=X&&intersection[0]<X+1){
+                                    rotatedEntryPoints[q][x][2] = intersection[2];
+                                    //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                                    success = true;
+                                }else{
+                                    X--;
+                                }
+                            }
+                        }
+                    }else if(exitAngle<0&&exitAngle>-1.0){  //Strahl wird nach links abgelenkt
+                        int X=x;
+                        bool success = false;
+                        while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X-1) > 0){
+                            QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X), X-1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X-1));
+                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                            QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                            if(intersection[0]<=X&&intersection[0]>X-1){
+                                rotatedEntryPoints[q][x][2] = intersection[2];
+                                success = true;
+                            }else{
+                                X--;
+                            }
+                        }
+                        if(success == false){
+                            //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<q<<x;
+                            if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
+                                QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
+                                QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                                QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                                if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
+                                    //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                                    rotatedEntryPoints[q][x][2] = intersection[2];
+                                    success = true;
+                                }
+                            }
+                            while(success == false && X<=x){
+                                QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X+1, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X+1));
+                                QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                                QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                                if(intersection[0]>=X&&intersection[0]<X+1){
+                                    rotatedEntryPoints[q][x][2] = intersection[2];
+                                    //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                                    success = true;
+                                }else{
+                                    X++;
+                                }
+                            }
+                        }
+                    }else{
+                        //qDebug()<<"Strahl wurde total reflektiert!"<<q<<x;
+                    }
+                    if(createBScans){
+                        bScan = propagateOctRayThroughHisto(rotatedHistoImages[q],bScan,double(x),rotatedEntryPoints[q][x][0],rotatedEntryPoints[q][x][1],rotatedEntryPoints[q][x][2],riMedium,riSample);
+                    }
+                    rotatedEntryPoints[q][x].append(bufVec[1]);
+                    // Wert in ein Sinogram malen
+                    if(rotatedEntryPoints[q][x][2]<0){
+                        rotatedEntryPoints[q][x][2]=0;
+                        qDebug()<<"irgendwas schiefgelaufen beim rayPropagate";
+                    }
+                    double gray = 0.35*propagateRayThroughHisto(rotatedHistoImages[q],x,rotatedEntryPoints[q][x][0],rotatedEntryPoints[q][x][1],rotatedEntryPoints[q][x][2]);
+                    if(gray>65535){
+                        qDebug()<<"Aufaddierter Grauwert zu groß für 16bit: "<<q<<x<<gray;
+                        gray = 65535;
+                    }
+                    dstHisto[x]= int(gray);
+                    if(createTransmission){
+                        if(rotatedEntryPoints[q][x][1]==1||rotatedEntryPoints[q][x][1]==-1){
+                            dstTrans[x]= int(0);
+                        }else{
+                            int buf = (65535 - gray)*qCos(rotatedEntryPoints[q][x][1]*10.0);
+                            if (buf<0){
+                                buf=0;
+                            }
+                            dstTrans[x]= buf;
+                        }
                     }
                 }else{
-                    //qDebug()<<"Strahl wurde total reflektiert!"<<q<<x;
+                    rotatedEntryPoints[q][x] = {0,0,0,0};
                 }
-                if(createBScans){
-                    bScan = propagateOctRayThroughHisto(rotatedHistoImages[q],bScan,double(x),rotatedEntryPoints[q][x][0],rotatedEntryPoints[q][x][1],rotatedEntryPoints[q][x][2],riMedium,riSample);
-                }
-                rotatedEntryPoints[q][x].append(bufVec[1]);
-                // Wert in ein Sinogram malen
-                if(rotatedEntryPoints[q][x][2]<0){
-                    rotatedEntryPoints[q][x][2]=0;
-                    qDebug()<<"irgendwas schiefgelaufen beim rayPropagate";
-                }
-                double gray = 0.45*propagateRayThroughHisto(rotatedHistoImages[q],x,rotatedEntryPoints[q][x][0],rotatedEntryPoints[q][x][1],rotatedEntryPoints[q][x][2]);
+            }
+            double rotateBy = (2*M_PI/double(numberOfProjections))*q;
+            QString projAngle = QString::number(qRadiansToDegrees(rotateBy),'g',4);
+            if(createBScans){
+                bScan = noiseBScan(bScan,1);
+                bScan.save(inputPathSurface+"\\"+nameRI+"_bScan_"+projAngle+".png");
+            }
+        }
+    }
+    if(useMultiThreading){
+        for(int q = 0;q<numberOfProjections;q++){
+            quint16 *dstHisto = (quint16*)(sinogramHisto.bits()+q*sinogramHisto.bytesPerLine());
+            quint16 *dstTrans = (quint16*)(transmissionHisto.bits()+q*transmissionHisto.bytesPerLine());
+            if(createTransmission){
+                dstTrans[0]= int(65535);
+            }
+            for(int x = 1;x<inputSurface.width();x++){
+
+                double gray = 0.3*propagateRayThroughHisto(rotatedHistoImages[q],x,rotatedEntryPoints[q][x][0],rotatedEntryPoints[q][x][1],rotatedEntryPoints[q][x][2]);
                 if(gray>65535){
                     qDebug()<<"Aufaddierter Grauwert zu groß für 16bit: "<<q<<x<<gray;
                     gray = 65535;
@@ -1324,22 +1379,14 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                     if(rotatedEntryPoints[q][x][1]==1||rotatedEntryPoints[q][x][1]==-1){
                         dstTrans[x]= int(0);
                     }else{
-                        int buf = (65535 - gray)*qCos(rotatedEntryPoints[q][x][1]*10.0);
+                        int buf = (65535 - 0.5*gray)*qCos(rotatedEntryPoints[q][x][1]*10.0);
                         if (buf<0){
                             buf=0;
                         }
                         dstTrans[x]= buf;
                     }
                 }
-            }else{
-                rotatedEntryPoints[q][x] = {0,0,0,0};
             }
-        }
-        double rotateBy = (2*M_PI/double(numberOfProjections))*q;
-        QString projAngle = QString::number(qRadiansToDegrees(rotateBy),'g',4);
-        if(createBScans){
-            bScan = noiseBScan(bScan,1);
-            bScan.save(inputPathSurface+"\\"+nameRI+"_bScan_"+projAngle+".png");
         }
     }
     quint16 *dstSinoBot = (quint16*)(sinogramHisto.bits()+numberOfProjections*sinogramHisto.bytesPerLine());
@@ -1707,7 +1754,7 @@ void surface_fitting_test::on_pushButton_continousSimulation_clicked()
         sinogramHisto.fill(0);
         QString riString = QString::number(riMedium,'g',4);
         qDebug()<<"Simulation of following Medium RI is fnished:"<<riString;
-        riMedium = riMedium + 0.01;
+        riMedium = riMedium + 0.02;
     }
     qDebug()<<"All Simulations finished";
 }
