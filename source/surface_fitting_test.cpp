@@ -598,9 +598,20 @@ double surface_fitting_test::getExitAngle(double slope, double n1, double n2) //
     }else if((n1*qSin(qAtan(slope)))/n2>1){
         return 1.0;
     }else{
-        //double gamma = -(qAtan(slope) - qAsin((n1*qSin(qAtan(slope)))/n2));
-        //return gamma;
         return -(qAtan(slope) - qAsin((n1*qSin(qAtan(slope)))/n2));
+    }
+}
+
+double surface_fitting_test::getExitAngleAtBack(double slope, double nSample, double nMedium, double gamma)
+{
+    if(nSample==nMedium){
+        return gamma;
+    }else if((nSample*qSin(qAtan(slope)+gamma))/nMedium<-1){
+        return -1.0;
+    }else if((nSample*qSin(qAtan(slope)+gamma))/nMedium>1){
+        return 1.0;
+    }else{
+        return qAsin((nSample*qSin(gamma + qAtan(slope)))/nMedium) - qAtan(slope);
     }
 }
 
@@ -1135,6 +1146,125 @@ QVector<double> surface_fitting_test::getIntersectionPointStatic(QVector<double>
     return intersection;
 }
 
+double surface_fitting_test::calculateCameraPoint(double n1, double yExit, double xExit, double angleExit)
+{
+    //hier muss noch irgendwie ein Faktor rein um von Pixeln auf mm zu kommen
+    double radiusGlassCuvette = 5;
+    double n2 = 1.5;
+    double n3 = 1;
+    double y1 = radiusGlassCuvette-yExit;
+    double y2 = 1.5;
+    double y3 = 20;
+    double x1 = y1*qTan(angleExit);
+    qDebug()<<"Versatz auf Innenseite: "<<x1;
+    double x2 = y2*qTan(qAsin(qSin(angleExit)*n1/n2));
+    qDebug()<<"Versatz innerhalb Glas: "<<x2;
+    double x3 = y3*qTan(qAsin(qSin(angleExit)*n1/n3));
+    qDebug()<<"Winkel hinter GlassCuvete (total): "<<qRadiansToDegrees(qAsin(qSin(angleExit)*n1/n3));
+    qDebug()<<"Versatz in X: "<<x1+x2+x3;
+    return xExit + x1 + x2 + x3;
+}
+
+QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurface, int xEntry, double mediaRI, double samplRi)
+{
+    QVector<double> entryPoint;
+    if(getFirstValueFromTop(thinSurface,xEntry-1)!=0 && getFirstValueFromTop(thinSurface,xEntry)!=0 && getFirstValueFromTop(thinSurface,xEntry+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
+        QVector<double>bufVec = getSlopeAtEntry(thinSurface,xEntry,ui->spinBox_slopeSigma->value());
+        double exitAngle = getExitAngle(bufVec[1],mediaRI,samplRi);
+        qDebug()<<"Entry Slope ist: "<<bufVec[1];
+        qDebug()<<"Exit Angle in Probe: "<<exitAngle;
+        entryPoint = {bufVec[0],exitAngle};
+        entryPoint.append(0);
+        if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
+            int X=xEntry;
+            bool success = false;
+            while(success == false && getFirstValueFromBottom(thinSurface,X+1)>0){
+                QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(thinSurface,X), X+1, getFirstValueFromBottom(thinSurface,X+1));
+                QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
+                QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                if(intersection[0]>=X&&intersection[0]<X+1){
+                    entryPoint[2] = intersection[2];
+                    success = true;
+                }else{
+                    X++;
+                }
+            }
+            if(success == false){
+                //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<q<<x;
+                if(getFirstValueFromTop(thinSurface,X)!=getFirstValueFromBottom(thinSurface,X)){
+                    QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(thinSurface,X), X, getFirstValueFromBottom(thinSurface,X));
+                    QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
+                    QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                    if(intersection[1]>=getFirstValueFromTop(thinSurface,X)&&intersection[1]<=getFirstValueFromBottom(thinSurface,X)){
+                        //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                        entryPoint[2] = intersection[2];
+                        success = true;
+                    }
+                }
+                while(success == false && X>=xEntry){
+                    QVector<double> surfaceVector = parameterizeFromPoints(X-1, getFirstValueFromTop(thinSurface,X-1), X, getFirstValueFromTop(thinSurface,X));
+                    QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
+                    QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                    if(intersection[0]>=X&&intersection[0]<X+1){
+                        entryPoint[2] = intersection[2];
+                        //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                        success = true;
+                    }else{
+                        X--;
+                    }
+                }
+            }
+        }else if(exitAngle<0&&exitAngle>-1.0){  //Strahl wird nach links abgelenkt
+            int X=xEntry;
+            bool success = false;
+            while(success == false && getFirstValueFromBottom(thinSurface,X-1) > 0){
+                QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(thinSurface,X), X-1, getFirstValueFromBottom(thinSurface,X-1));
+                QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
+                QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                if(intersection[0]<=X&&intersection[0]>X-1){
+                    entryPoint[2] = intersection[2];
+                    success = true;
+                }else{
+                    X--;
+                }
+            }
+            if(success == false){
+                //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<q<<x;
+                if(getFirstValueFromTop(thinSurface,X)!=getFirstValueFromBottom(thinSurface,X)){
+                    QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(thinSurface,X), X, getFirstValueFromBottom(thinSurface,X));
+                    QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
+                    QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                    if(intersection[1]>=getFirstValueFromTop(thinSurface,X)&&intersection[1]<=getFirstValueFromBottom(thinSurface,X)){
+                        //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                        entryPoint[2] = intersection[2];
+                        success = true;
+                    }
+                }
+                while(success == false && X<=xEntry){
+                    QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(thinSurface,X), X+1, getFirstValueFromTop(thinSurface,X+1));
+                    QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
+                    QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                    if(intersection[0]>=X&&intersection[0]<X+1){
+                        entryPoint[2] = intersection[2];
+                        //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                        success = true;
+                    }else{
+                        X++;
+                    }
+                }
+            }
+        }
+    }
+    qDebug()<<"Strahl an Eingang "<<xEntry<<" simuliert.";
+    qDebug()<<"Ablenkung am Eingang betrug "<<entryPoint[1];
+    double exitPositionX = xEntry + entryPoint[2]*qSin(entryPoint[1]);
+    qDebug()<<"Exit Position X betrug: "<<exitPositionX;
+    QVector<double> exitSlope = getSlopeAtExit(thinSurface,std::round(exitPositionX),ui->spinBox_slopeSigma->value());
+    qDebug()<<"Exit Slope ist: "<<exitSlope[1];
+    double backExitAngle = getExitAngleAtBack(exitSlope[1],samplRi,mediaRI,entryPoint[1]);
+    qDebug()<<"Winkel hinter der Oberfläche: "<<backExitAngle;
+    return {exitPositionX, backExitAngle};
+}
 
 
 void surface_fitting_test::newNumber(QString name, int number, QString threadID)
@@ -1168,7 +1298,7 @@ void surface_fitting_test::on_spinBox_aScan_valueChanged(int arg1)
     if(slope[1]!=999){
         qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
         drawAndDisplaySlope(bufferImg,arg1,slope[0],slope[1],20);
-        qDebug()<<getDeltaThetaForPartner(slope[1],riMedium,riSample);
+        //qDebug()<<getDeltaThetaForPartner(slope[1],riMedium,riSample);
     }
 }
 
@@ -1627,29 +1757,8 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-//    learningAF(10000);
-//    af::array resultsAF(50000,f32);
-//    QVector<int> aScan;
-//    QVector<double> results(50000);
-//    aScan = {0,0,0,0,0,1,3,4,5,6,5,3,0,0,0,};
-//    qDebug()<<"For Schleife beginnt";
-//    for(int i = 0; i<50000;i++){
-//        results[i] = getArithmicMiddle(aScan,1,8);
-//    }
-//    gfor(af::seq i, 50000){
-//        resultsAF(i) = getArithmicMiddle(aScan,1,8);
-//    }
-//        QElapsedTimer timer;
-//        timer.start();
-//    for(int i = 0; i<10000;i++){
-//    getFirstValueFromTop(inputSurface,150);
-//}
-//    qDebug()<<"Values fertig"<<timer.elapsed();
-//    qDebug()<<"Values fertig"<<timer.nsecsElapsed();
-
-double db = 0.1;
-int i = 7;
-qDebug()<<db*i;
+    QVector<double> exitVec = getBackExitPointAndAngle(rotatedSurfacesThinnedOut[0],ui->spinBox_aScan->value(),ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value());
+    calculateCameraPoint(ui->doubleSpinBox_riMedium->value(),0.5,0,exitVec[1]);
 }
 
 void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)

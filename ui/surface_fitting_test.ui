@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\usaf-target\simulations\usaf-kreis</string>
+    <string>D:\test_reco\slot_simulator\surfacePlant</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -171,7 +171,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.000000000000000</double>
+    <double>1.330000000000000</double>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_riSample">
@@ -225,7 +225,7 @@
     <number>1000</number>
    </property>
    <property name="value">
-    <number>800</number>
+    <number>10</number>
    </property>
   </widget>
   <widget class="QLabel" name="label_4">
@@ -290,7 +290,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\usaf-target\simulations\usaf</string>
+    <string>D:\test_reco\slot_simulator\internPlant</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">

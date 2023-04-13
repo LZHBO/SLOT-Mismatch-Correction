@@ -168,6 +168,7 @@ private:
      * gibt Winkelabweichung von senkrechter Gerade in radiant wieder, input ist als Steigung deltaY/deltaX
      */
     double getExitAngle(double slope, double n1, double n2); //gibt die Winkelabweichung von der senkrechten Achse zurück
+    double getExitAngleAtBack(double slope, double nSample, double nMedium, double gamma);
     double getValueForGaussDistribution(double gammaX, double gammaY, int x, int y, double sigma);
     QVector<double> rotateImagePointTo(QVector<double> inputPoint, QVector<double> centerPoint, double rotationAngle, bool clockwise);
     QVector<double> parameterizeFromPoints(double x1, double y1, double x2, double y2);
@@ -203,7 +204,11 @@ private:
     static QVector<double> parameterizeFromPointsStatic(double x1, double y1, double x2, double y2);
     static QVector<double> parameterizeFromAngleStatic(double x, double y, double angle);
     static QVector<double> getIntersectionPointStatic(QVector<double> ray, QVector<double> surface);
-
+    double calculateCameraPoint(double n1, double yExit, double xExit, double angleExit);
+    /**
+     * [Entry Point: y, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche]
+     */
+    QVector<double> getBackExitPointAndAngle(QImage thinSurface, int xEntry, double mediaRI, double samplRi);
 
 public slots:
     void newNumber(QString name, int number, QString threadID);
