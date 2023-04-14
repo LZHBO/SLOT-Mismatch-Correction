@@ -1146,21 +1146,26 @@ QVector<double> surface_fitting_test::getIntersectionPointStatic(QVector<double>
     return intersection;
 }
 
-double surface_fitting_test::calculateCameraPoint(double n1, double yExit, double xExit, double angleExit)
+double surface_fitting_test::calculateCameraPoint(double mediumRI, double yExit, double xExit, double angleExit)
 {
     //hier muss noch irgendwie ein Faktor rein um von Pixeln auf mm zu kommen
+    if(angleExit == -1){
+        return -99;
+    }else if(angleExit ==1){
+        return 99;
+    }
     double radiusGlassCuvette = 5;
     double n2 = 1.5;
     double n3 = 1;
     double y1 = radiusGlassCuvette-yExit;
     double y2 = 1.5;
-    double y3 = 20;
+    double y3 = 50;
     double x1 = y1*qTan(angleExit);
     qDebug()<<"Versatz auf Innenseite: "<<x1;
-    double x2 = y2*qTan(qAsin(qSin(angleExit)*n1/n2));
+    double x2 = y2*qTan(qAsin(qSin(angleExit)*mediumRI/n2));
     qDebug()<<"Versatz innerhalb Glas: "<<x2;
-    double x3 = y3*qTan(qAsin(qSin(angleExit)*n1/n3));
-    qDebug()<<"Winkel hinter GlassCuvete (total): "<<qRadiansToDegrees(qAsin(qSin(angleExit)*n1/n3));
+    double x3 = y3*qTan(qAsin(qSin(angleExit)*mediumRI/n3));
+    qDebug()<<"Winkel hinter GlassCuvete (total): "<<qRadiansToDegrees(qAsin(qSin(angleExit)*mediumRI/n3));
     qDebug()<<"Versatz in X: "<<x1+x2+x3;
     return xExit + x1 + x2 + x3;
 }
@@ -1171,8 +1176,8 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
     if(getFirstValueFromTop(thinSurface,xEntry-1)!=0 && getFirstValueFromTop(thinSurface,xEntry)!=0 && getFirstValueFromTop(thinSurface,xEntry+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
         QVector<double>bufVec = getSlopeAtEntry(thinSurface,xEntry,ui->spinBox_slopeSigma->value());
         double exitAngle = getExitAngle(bufVec[1],mediaRI,samplRi);
-        qDebug()<<"Entry Slope ist: "<<bufVec[1];
-        qDebug()<<"Exit Angle in Probe: "<<exitAngle;
+//        qDebug()<<"Entry Slope ist: "<<bufVec[1];
+//        qDebug()<<"Exit Angle in Probe: "<<exitAngle;
         entryPoint = {bufVec[0],exitAngle};
         entryPoint.append(0);
         if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
@@ -1253,17 +1258,37 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
                     }
                 }
             }
+        }else if(exitAngle==1){
+            qDebug()<<"Strahl wurde totalreflektiert!";
+            return {double(xEntry),1};
+        }else{
+            qDebug()<<"Strahl wurde totalreflektiert!";
+            return {double(xEntry),-1};
         }
-    }
-    qDebug()<<"Strahl an Eingang "<<xEntry<<" simuliert.";
-    qDebug()<<"Ablenkung am Eingang betrug "<<entryPoint[1];
+
+//    qDebug()<<"Strahl an Eingang "<<xEntry<<" simuliert.";
+//    qDebug()<<"Ablenkung am Eingang betrug "<<entryPoint[1];
     double exitPositionX = xEntry + entryPoint[2]*qSin(entryPoint[1]);
-    qDebug()<<"Exit Position X betrug: "<<exitPositionX;
+    //qDebug()<<"Exit Position X betrug: "<<exitPositionX;
     QVector<double> exitSlope = getSlopeAtExit(thinSurface,std::round(exitPositionX),ui->spinBox_slopeSigma->value());
-    qDebug()<<"Exit Slope ist: "<<exitSlope[1];
+    //qDebug()<<"Exit Slope ist: "<<exitSlope[1];
     double backExitAngle = getExitAngleAtBack(exitSlope[1],samplRi,mediaRI,entryPoint[1]);
-    qDebug()<<"Winkel hinter der Oberfläche: "<<backExitAngle;
+    //qDebug()<<"Winkel hinter der Oberfläche: "<<backExitAngle;
     return {exitPositionX, backExitAngle};
+}else{
+        return {double(xEntry),0};
+    }
+}
+QVector<double> surface_fitting_test::generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI)
+{
+    double mmPerPixel = 0.01;
+    QVector<double> pattern = QVector<double>(thinSurface.width());
+    for(int x = 0; x<thinSurface.width(); x++){
+        QVector<double> exit = getBackExitPointAndAngle(thinSurface,x,mediaRI,sampleRI);
+        pattern[x]=calculateCameraPoint(mediaRI,0.5,0,exit[1])+mmPerPixel*x;
+    }
+    qDebug()<<pattern;
+    return pattern;
 }
 
 
@@ -1757,8 +1782,7 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-    QVector<double> exitVec = getBackExitPointAndAngle(rotatedSurfacesThinnedOut[0],ui->spinBox_aScan->value(),ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value());
-    calculateCameraPoint(ui->doubleSpinBox_riMedium->value(),0.5,0,exitVec[1]);
+    QVector<double> patternX = generateRefractionPattern(rotatedSurfacesThinnedOut[0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value());
 }
 
 void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)
@@ -2071,29 +2095,13 @@ void surface_fitting_test::on_checkBox_clockwise_stateChanged(int arg1)
 void surface_fitting_test::on_pushButton_startThread_clicked()
 {
     connect(&thready,&threadBoi::thinnedOutSurface,this,&surface_fitting_test::fillInThinnedSurface);
-    //    connect(this,&surface_fitting_test::on_stop,&thready,&threadBoi::stop);
-    //    QFuture<void> test = QtConcurrent::run(&this->thready,&threadBoi::start,QString("Karl"));
-    //    QThread::msleep(100);
-    //    QFuture<void> test2 = QtConcurrent::run(&this->thready,&threadBoi::start,QString("Schnegger"));
-    //    QThread::msleep(100);
-    //    QFuture<void> test3 = QtConcurrent::run(&this->thready,&threadBoi::start,QString("Schimmel"));
     QElapsedTimer timmer;
     rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
     qDebug()<<"Gleich gehts los mit Multithreading!!";
     timmer.start();
     QtConcurrent::blockingMap(rotatedSurfacesThinnedOut,&threadBoi::thinOutSurfaceThreaded);
-    //waitFor[numberOfProjections].waitForFinished();
-    //while schleife etc
     qDebug()<<"Multithreading dauerte:"<<timmer.elapsed();
     displayImageLeft(rotatedSurfacesThinnedOut[300]);
-//    rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
-//    timmer.restart();
-//    for(int i = 0; i<numberOfProjections;i++){
-//        rotatedSurfacesThinnedOut[i]=thinOutSurface(rotatedSurfacesThinnedOut[i]);
-//    }
-//    qDebug()<<"Konventionell dauerte:"<<timmer.elapsed();
-    //    QImage rando = QtConcurrent::run(&this->thready,&threadBoi::thinOutSurfaceThreaded,inputSurface);
-    //    displayImageLeft(rando);
 }
 
 

@@ -204,11 +204,12 @@ private:
     static QVector<double> parameterizeFromPointsStatic(double x1, double y1, double x2, double y2);
     static QVector<double> parameterizeFromAngleStatic(double x, double y, double angle);
     static QVector<double> getIntersectionPointStatic(QVector<double> ray, QVector<double> surface);
-    double calculateCameraPoint(double n1, double yExit, double xExit, double angleExit);
+    double calculateCameraPoint(double mediumRI, double yExit, double xExit, double angleExit);
     /**
      * [Entry Point: y, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche]
      */
     QVector<double> getBackExitPointAndAngle(QImage thinSurface, int xEntry, double mediaRI, double samplRi);
+    QVector<double> generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI);
 
 public slots:
     void newNumber(QString name, int number, QString threadID);
