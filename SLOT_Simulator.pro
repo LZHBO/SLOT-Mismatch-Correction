@@ -9,6 +9,7 @@ CONFIG += c++11
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    source/refraction.cpp \
     source/dejitter.cpp \
     source/main.cpp \
     source/mainwindow.cpp \
@@ -18,10 +19,12 @@ SOURCES += \
 HEADERS += \
     header/dejitter.h \
     header/mainwindow.h \
+    header/refraction.h \
     header/surface_fitting_test.h \
     header/threadboi.h
 
 FORMS += \
+    ui/refraction.ui \
     ui/dejitter.ui \
     ui/mainwindow.ui \
     ui/surface_fitting_test.ui
@@ -42,3 +45,8 @@ unix|win32: LIBS += -LD:/v3/lib/ -laf
 
 INCLUDEPATH += D:/v3/include
 DEPENDPATH += D:/v3/include
+
+unix|win32: LIBS += -L$$PWD/../../../../../opencv/build/x64/vc15/lib/ -lopencv_world460
+
+INCLUDEPATH += $$PWD/../../../../../opencv/build/include
+DEPENDPATH += $$PWD/../../../../../opencv/build/include

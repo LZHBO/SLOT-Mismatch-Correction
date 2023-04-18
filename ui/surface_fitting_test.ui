@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>D:\test_reco\slot_simulator\surfacePlant</string>
+    <string>E:\SLOT-Simulator-Tests\quint1</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -290,7 +290,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>D:\test_reco\slot_simulator\internPlant</string>
+    <string>E:\SLOT-Simulator-Tests\quint1</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">
@@ -813,6 +813,19 @@
    </property>
    <property name="text">
     <string>PD Sinogram</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_openOpenCV">
+   <property name="geometry">
+    <rect>
+     <x>1050</x>
+     <y>510</y>
+     <width>231</width>
+     <height>71</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Open OpenCV</string>
    </property>
   </widget>
  </widget>

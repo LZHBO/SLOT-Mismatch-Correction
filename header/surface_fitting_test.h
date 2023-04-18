@@ -18,6 +18,7 @@
 #include <QtConcurrent>
 #include <QFuture>
 #include <QFutureWatcher>
+#include <header/refraction.h>
 
 
 
@@ -103,13 +104,15 @@ private slots:
 
     void on_checkBox_useMultiThreading_stateChanged(int arg1);
 
-
     void on_radioButton_pmt_toggled(bool checked);
 
     void on_radioButton_PD_toggled(bool checked);
 
+    void on_pushButton_openOpenCV_clicked();
+
 private:
     Ui::surface_fitting_test *ui;
+    refraction *ref;
     threadBoi thready;
     QString inputPathSurface;
     QString inputPathHisto;
@@ -210,6 +213,7 @@ private:
      */
     QVector<double> getBackExitPointAndAngle(QImage thinSurface, int xEntry, double mediaRI, double samplRi);
     QVector<double> generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI);
+    double getFittingSampleRI(QImage thinSurface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset);
 
 public slots:
     void newNumber(QString name, int number, QString threadID);

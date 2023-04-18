@@ -1161,12 +1161,12 @@ double surface_fitting_test::calculateCameraPoint(double mediumRI, double yExit,
     double y2 = 1.5;
     double y3 = 50;
     double x1 = y1*qTan(angleExit);
-    qDebug()<<"Versatz auf Innenseite: "<<x1;
+    //qDebug()<<"Versatz auf Innenseite: "<<x1;
     double x2 = y2*qTan(qAsin(qSin(angleExit)*mediumRI/n2));
-    qDebug()<<"Versatz innerhalb Glas: "<<x2;
+    //qDebug()<<"Versatz innerhalb Glas: "<<x2;
     double x3 = y3*qTan(qAsin(qSin(angleExit)*mediumRI/n3));
-    qDebug()<<"Winkel hinter GlassCuvete (total): "<<qRadiansToDegrees(qAsin(qSin(angleExit)*mediumRI/n3));
-    qDebug()<<"Versatz in X: "<<x1+x2+x3;
+    //qDebug()<<"Winkel hinter GlassCuvete (total): "<<qRadiansToDegrees(qAsin(qSin(angleExit)*mediumRI/n3));
+    //qDebug()<<"Versatz in X: "<<x1+x2+x3;
     return xExit + x1 + x2 + x3;
 }
 
@@ -1259,11 +1259,11 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
                 }
             }
         }else if(exitAngle==1){
-            qDebug()<<"Strahl wurde totalreflektiert!";
-            return {double(xEntry),1};
+            //qDebug()<<"Strahl wurde totalreflektiert!";
+            return {double(xEntry),0,1};
         }else{
-            qDebug()<<"Strahl wurde totalreflektiert!";
-            return {double(xEntry),-1};
+            //qDebug()<<"Strahl wurde totalreflektiert!";
+            return {double(xEntry),0,-1};
         }
 
 //    qDebug()<<"Strahl an Eingang "<<xEntry<<" simuliert.";
@@ -1274,9 +1274,9 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
     //qDebug()<<"Exit Slope ist: "<<exitSlope[1];
     double backExitAngle = getExitAngleAtBack(exitSlope[1],samplRi,mediaRI,entryPoint[1]);
     //qDebug()<<"Winkel hinter der Oberfläche: "<<backExitAngle;
-    return {exitPositionX, backExitAngle};
+    return {exitPositionX, exitSlope[0], backExitAngle};
 }else{
-        return {double(xEntry),0};
+        return {double(xEntry),0,0};
     }
 }
 QVector<double> surface_fitting_test::generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI)
@@ -1285,10 +1285,47 @@ QVector<double> surface_fitting_test::generateRefractionPattern(QImage thinSurfa
     QVector<double> pattern = QVector<double>(thinSurface.width());
     for(int x = 0; x<thinSurface.width(); x++){
         QVector<double> exit = getBackExitPointAndAngle(thinSurface,x,mediaRI,sampleRI);
-        pattern[x]=calculateCameraPoint(mediaRI,0.5,0,exit[1])+mmPerPixel*x;
+        pattern[x]=calculateCameraPoint(mediaRI,mmPerPixel*exit[1],mmPerPixel*exit[0],exit[2]);
+        if(exit[2]==-1||exit[2]==1){
+            qDebug()<<"Strahl wurde totalreflektiert beim pattern-gen";
+        }
     }
     qDebug()<<pattern;
     return pattern;
+}
+
+double surface_fitting_test::getFittingSampleRI(QImage thinSurface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset)
+{
+    double mmPerPixel = 0.01;
+    double currTestRi = expectedSampleRI - riRange;
+    double smallestDeviation = 100;
+    double fittingRi = 333;
+    if(getFirstValueFromTop(thinSurface,xEntry)==0){
+        return 999;
+    }
+    QVector<double> entrySlopeVec = getSlopeAtEntry(thinSurface,xEntry,ui->spinBox_slopeSigma->value());
+    if(entrySlopeVec[1]==0){
+        QVector<double> exitSlopeVec = getSlopeAtExit(thinSurface,xEntry,ui->spinBox_slopeSigma->value());
+        if(exitSlopeVec[1]==0){
+            return 777;
+        }
+    }
+    while(currTestRi <=expectedSampleRI+riRange){
+        QVector<double> exit = getBackExitPointAndAngle(thinSurface,xEntry,mediaRI,currTestRi);
+        if(exit[2]>-1&&exit[2]<1){
+            double cameraPoint =calculateCameraPoint(mediaRI,mmPerPixel*exit[1],mmPerPixel*exit[0],exit[2]);
+            if(std::abs(cameraPoint-xCameraPoint)<smallestDeviation){
+                fittingRi = currTestRi;
+                smallestDeviation = std::abs(cameraPoint-xCameraPoint);
+                //qDebug()<<"Aktuell kleinste Abweichung ist: "<<std::abs(cameraPoint-xCameraPoint);
+            }
+        }
+        currTestRi = currTestRi + riIncriment;
+    }
+    if(smallestDeviation<exceptableOffset){
+        return fittingRi;
+    }
+    return 333;
 }
 
 
@@ -1783,6 +1820,19 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
     QVector<double> patternX = generateRefractionPattern(rotatedSurfacesThinnedOut[0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value());
+    for (int x = 0; x<patternX.length();x++){
+        double fittedRI = getFittingSampleRI(rotatedSurfacesThinnedOut[0],x,patternX[x],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.2,0.005,3);
+        //qDebug()<<"Ablenkung war: "<<patternX[ui->spinBox_aScan->value()];
+        if(fittedRI==999){
+            qDebug()<<"No sample for entry X position!";
+        }else if(fittedRI==777){
+            qDebug()<<"Sample Slope for entry and exit Zero!";
+        }else if(fittedRI==333){
+            qDebug()<<"Total internal reflektion!";
+        }else{
+            qDebug()<<"Most fitting RI is: "<<fittedRI;
+        }
+    }
 }
 
 void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)
@@ -2145,3 +2195,10 @@ void surface_fitting_test::on_radioButton_PD_toggled(bool checked)
         qDebug()<<"PMT Sinogram wird korrigiert:"<<correctingPmtSinogram;
     }
 }
+
+void surface_fitting_test::on_pushButton_openOpenCV_clicked()
+{
+    ref = new refraction();
+    ref->show();
+}
+
