@@ -139,6 +139,10 @@ private:
     bool correctingPmtSinogram = true;
     signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
+    double mmPerPixelOnSensor = 0.0031;
+    double mmPerPixelInReco = 0.01765;
+    double correctedSensorRatio;
+    QVector<QVector<double>> momentsList;
 //    /**
 //     * Punkte für die der korrigierte Wert auf der Rückseite wäre, erster Eintrag Nummer der Projektion, zweiter Eintrag AScan der Projektion
 //     */
@@ -207,17 +211,23 @@ private:
     static QVector<double> parameterizeFromPointsStatic(double x1, double y1, double x2, double y2);
     static QVector<double> parameterizeFromAngleStatic(double x, double y, double angle);
     static QVector<double> getIntersectionPointStatic(QVector<double> ray, QVector<double> surface);
+    /**
+     * input in mm, output ist die relative verschiebung
+     */
     double calculateCameraPoint(double mediumRI, double yExit, double xExit, double angleExit);
     /**
      * [Entry Point: y, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche]
      */
     QVector<double> getBackExitPointAndAngle(QImage thinSurface, int xEntry, double mediaRI, double samplRi);
     QVector<double> generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI);
+    void determineTeleError(QVector<QVector<double>> moments);
+    QVector<QVector<double>> makeListRelativeAndScaled(QVector<QVector<double>> moments);
     double getFittingSampleRI(QImage thinSurface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset);
 
 public slots:
     void newNumber(QString name, int number, QString threadID);
     void fillInThinnedSurface(QImage surface, int i);
+    void getMomentsList(QVector<QVector<double>> moments);
 signals:
     void on_stop();
 };

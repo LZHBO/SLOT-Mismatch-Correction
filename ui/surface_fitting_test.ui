@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\SLOT-Simulator-Tests\quint1</string>
+    <string>E:\mSLOT\MSQ_C1\2023_04_19\surface_-0.144-cor</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -171,7 +171,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.330000000000000</double>
+    <double>1.420000000000000</double>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_riSample">
@@ -290,7 +290,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\SLOT-Simulator-Tests\quint1</string>
+    <string>E:\mSLOT\MSQ_C1\2023_04_19\surface_-0.144-cor</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">

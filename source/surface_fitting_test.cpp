@@ -1154,12 +1154,12 @@ double surface_fitting_test::calculateCameraPoint(double mediumRI, double yExit,
     }else if(angleExit ==1){
         return 99;
     }
-    double radiusGlassCuvette = 5;
-    double n2 = 1.5;
+    double radiusGlassCuvette = 9.0;
+    double n2 = 1.523;
     double n3 = 1;
     double y1 = radiusGlassCuvette-yExit;
-    double y2 = 1.5;
-    double y3 = 50;
+    double y2 = 2.0;
+    double y3 = 73.0;
     double x1 = y1*qTan(angleExit);
     //qDebug()<<"Versatz auf Innenseite: "<<x1;
     double x2 = y2*qTan(qAsin(qSin(angleExit)*mediumRI/n2));
@@ -1281,11 +1281,10 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
 }
 QVector<double> surface_fitting_test::generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI)
 {
-    double mmPerPixel = 0.01;
     QVector<double> pattern = QVector<double>(thinSurface.width());
     for(int x = 0; x<thinSurface.width(); x++){
         QVector<double> exit = getBackExitPointAndAngle(thinSurface,x,mediaRI,sampleRI);
-        pattern[x]=calculateCameraPoint(mediaRI,mmPerPixel*exit[1],mmPerPixel*exit[0],exit[2]);
+        pattern[x]=calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
         if(exit[2]==-1||exit[2]==1){
             qDebug()<<"Strahl wurde totalreflektiert beim pattern-gen";
         }
@@ -1294,9 +1293,33 @@ QVector<double> surface_fitting_test::generateRefractionPattern(QImage thinSurfa
     return pattern;
 }
 
+void surface_fitting_test::determineTeleError(QVector<QVector<double> > moments)
+{
+    int scanPoints = moments.size();
+    qDebug()<<scanPoints;
+    //Ablenkung in Probe und Ablenkung auf Sensor vergleichen
+    double relativeScanMovementInSample = scanPoints*mmPerPixelInReco;
+    qDebug()<<"Der Laser wurde in der Probe um "<<relativeScanMovementInSample<<" in x-Richtung bewegt";
+    double relativeScanMovementOnSensor = (moments[scanPoints-1][0] - moments[0][0])*mmPerPixelOnSensor;
+    qDebug()<<"Der Laser wurde in der auf dem Sensor um "<<relativeScanMovementOnSensor<<" in x-Richtung bewegt";
+    correctedSensorRatio = relativeScanMovementInSample/std::abs(moments[scanPoints-1][0] - moments[0][0]);
+    qDebug()<<"Echte Ratio aufm Sensor: "<<mmPerPixelOnSensor;
+    qDebug()<<"Korrigierte Ratio aufm Sensor: "<<correctedSensorRatio;
+}
+
+QVector<QVector<double> > surface_fitting_test::makeListRelativeAndScaled(QVector<QVector<double> > moments)
+{
+    double offset = moments[0][0];
+    for(int x = 0; x<moments.size();x++){
+        moments[x][0] = (moments[x][0] - offset)*correctedSensorRatio;
+        qDebug()<<"Skalierter und relativierter Versatz für Punkt "<<x<<"ist: "<<moments[x][0];
+    }
+    return moments;
+}
+
 double surface_fitting_test::getFittingSampleRI(QImage thinSurface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset)
 {
-    double mmPerPixel = 0.01;
+    //double mmPerPixel = 0.01;
     double currTestRi = expectedSampleRI - riRange;
     double smallestDeviation = 100;
     double fittingRi = 333;
@@ -1312,8 +1335,9 @@ double surface_fitting_test::getFittingSampleRI(QImage thinSurface, int xEntry, 
     }
     while(currTestRi <=expectedSampleRI+riRange){
         QVector<double> exit = getBackExitPointAndAngle(thinSurface,xEntry,mediaRI,currTestRi);
+        //qDebug()<<"Back Exit Point: " << xEntry<<currTestRi <<exit;
         if(exit[2]>-1&&exit[2]<1){
-            double cameraPoint =calculateCameraPoint(mediaRI,mmPerPixel*exit[1],mmPerPixel*exit[0],exit[2]);
+            double cameraPoint =calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
             if(std::abs(cameraPoint-xCameraPoint)<smallestDeviation){
                 fittingRi = currTestRi;
                 smallestDeviation = std::abs(cameraPoint-xCameraPoint);
@@ -1323,6 +1347,7 @@ double surface_fitting_test::getFittingSampleRI(QImage thinSurface, int xEntry, 
         currTestRi = currTestRi + riIncriment;
     }
     if(smallestDeviation<exceptableOffset){
+        //qDebug()<<"Smallest Deviation von "<<xEntry<<smallestDeviation;
         return fittingRi;
     }
     return 333;
@@ -1339,6 +1364,12 @@ void surface_fitting_test::fillInThinnedSurface(QImage surface, int i)
 {
     rotatedSurfacesThinnedOut[i]=surface;
     qDebug()<<"Thinned out surface in Liste eingetragen!!"<<i;
+}
+
+void surface_fitting_test::getMomentsList(QVector<QVector<double> > moments)
+{
+    momentsList = moments;
+    qDebug()<<"Liste der Momente erhalten. Erster Wert: "<<momentsList[0];
 }
 
 
@@ -1819,20 +1850,23 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-    QVector<double> patternX = generateRefractionPattern(rotatedSurfacesThinnedOut[0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value());
-    for (int x = 0; x<patternX.length();x++){
-        double fittedRI = getFittingSampleRI(rotatedSurfacesThinnedOut[0],x,patternX[x],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.2,0.005,3);
-        //qDebug()<<"Ablenkung war: "<<patternX[ui->spinBox_aScan->value()];
-        if(fittedRI==999){
-            qDebug()<<"No sample for entry X position!";
-        }else if(fittedRI==777){
-            qDebug()<<"Sample Slope for entry and exit Zero!";
-        }else if(fittedRI==333){
-            qDebug()<<"Total internal reflektion!";
-        }else{
-            qDebug()<<"Most fitting RI is: "<<fittedRI;
-        }
+    determineTeleError(momentsList);
+    momentsList = makeListRelativeAndScaled(momentsList);
+    QVector<double> fittedRI(momentsList.size());
+    for (int x = 2; x<momentsList.size()-2;x++){
+        fittedRI[x] = getFittingSampleRI(rotatedSurfacesThinnedOut[0],x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.001,0.1);
+        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
     }
+    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
+    fittedRI.removeAll(333);
+    fittedRI.removeAll(777);
+    fittedRI.removeAll(0);
+    qDebug()<<fittedRI;
+    double sum=0;
+    for(int i = 0; i<fittedRI.size();i++){
+        sum = sum + fittedRI[i];
+    }
+    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
 }
 
 void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)
@@ -2200,5 +2234,6 @@ void surface_fitting_test::on_pushButton_openOpenCV_clicked()
 {
     ref = new refraction();
     ref->show();
+    connect(ref,&refraction::sendMomentsList,this,&surface_fitting_test::getMomentsList);
 }
 

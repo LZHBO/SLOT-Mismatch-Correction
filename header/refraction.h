@@ -42,6 +42,11 @@ private:
     QImage qimgProcessed;
 
     QFileInfoList gaussList;
+
+
+signals:
+    void sendMomentsList(QVector<QVector<double>> moments);
+
 };
 
 #endif // REFRACTION_H

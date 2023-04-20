@@ -37,6 +37,7 @@ void refraction::on_pushButton_loadStack_clicked()
     gaussList = dir.entryInfoList();
     gaussList.removeFirst();
     gaussList.removeFirst();
+    qDebug()<<gaussList;
     cv::Mat img;
     cv::Mat weights = cv::Mat::zeros(1024,1280,cv::IMREAD_GRAYSCALE);
     QVector<QVector<double>> momentsList(gaussList.size());
@@ -48,7 +49,9 @@ void refraction::on_pushButton_loadStack_clicked()
         momentsList[i]={mom.m10/mom.m00,mom.m01/mom.m00};
         cv::Point point = {int(momentsList[i][0]),int(momentsList[i][1])};
         cv::circle(weights,point,1,200,-1);
+        qDebug()<<"Moment in X bei Bild "<<i+1<<mom.m10/mom.m00;
     }
-    qDebug()<<momentsList;
-    cv::imshow("Display window",weights);
+    emit sendMomentsList(momentsList);
+    //qDebug()<<momentsList;
+    //cv::imshow("Display window",weights);
 }
