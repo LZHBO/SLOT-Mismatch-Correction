@@ -36,6 +36,37 @@ class surface_fitting_test : public QWidget
         QVector<QVector<double>> entryPoints;
     };
 
+    /**
+     * Enthält alle Informationen über den Eingangspunkt des Strahls
+     */
+    struct entryPoint{
+        /**
+         * X-Koordinate des eingehendes Strahls
+         */
+        double xEntry = 0;
+        /**
+         * Y-Koordinate des eingehendes Strahls
+         */
+        double yEntry = 0;
+        /**
+         * Ablenkung des Eingrangstrahls in radiant von der Senkrechten
+         */
+        double gammaEntry = 0;
+        /**
+         * Länge bis der Strahl die Probenrückseite trifft
+         */
+        double lengthEntry = 0;
+        /**
+         * Steigung der Oberfläche am Eintrittspunkt
+         */
+        double slopeEntry = 0;
+    };
+
+    struct newSurfaceInfo{
+        QImage thinnedOut;
+        QVector<entryPoint> ePoints;
+    };
+
 public:
     explicit surface_fitting_test(QWidget *parent = nullptr);
     static int  propagateRaysMulti(QImage thinnedOutSurface);
@@ -156,6 +187,7 @@ private:
      * [Number of tomogram], [x], [y, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche]
      */
     QVector<QVector<QVector<double>>>rotatedEntryPoints;
+    QVector<QVector<entryPoint>>newRotatedEntryPoints;
     int numberOfProjections;
     QString nrOfProjString;
     void displayImageLeft(QImage image);
@@ -199,11 +231,13 @@ private:
     /**
      * rotatedEntryPoint: y entry, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche
      */
-    double getTransmissionGrade(double riMedium, double riSample, QVector<double> rotatedEntryPoint);
+    double getTransmissionGrade(double riMedium, double riSample, entryPoint point);
     QVector<QImage> makeRotatedImageStack(QString path, int stackSize);
     void learningAF(int size);
     QVector<surfaceInfo> makeStructVector(QVector<QImage> imageList, QVector<QVector<QVector<double>>> pointList);
+    QVector<newSurfaceInfo> makeNewStructVector(QVector<QImage> imageList, QVector<QVector<entryPoint>> pointList);
     static int propagateRayMultiThreaded(surfaceInfo &surfaceList);
+    static int newPropagateRayMultiThreaded(newSurfaceInfo &surfaceList);
 
     static int getFirstValueFromTopStatic(QImage image, int X);
     static int getFirstValueFromBottomStatic(QImage image, int X);
@@ -217,9 +251,6 @@ private:
      * input in mm, output ist die relative verschiebung
      */
     double calculateCameraPoint(double mediumRI, double yExit, double xExit, double angleExit);
-    /**
-     * [Entry Point: y, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche]
-     */
     QVector<double> getBackExitPointAndAngle(QImage thinSurface, int xEntry, double mediaRI, double samplRi);
     QVector<double> generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI);
     void determineTeleError(QVector<QVector<double>> moments);
