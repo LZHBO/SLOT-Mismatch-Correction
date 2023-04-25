@@ -42,7 +42,6 @@ int threadBoi::thinOutSurfaceThreaded(QImage &surface)
         }
     }
     surface = output;
-    //emit thinnedOutSurface(output,i);
     return 1;
 }
 

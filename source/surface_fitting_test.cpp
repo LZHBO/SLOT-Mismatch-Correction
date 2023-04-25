@@ -338,30 +338,26 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
     int slopeSigma = ui->spinBox_slopeSigma->value();
     slopeSigmaMT = ui->spinBox_slopeSigma->value();
     int numberOfAngles = sinogram.height()-2;
+    rotatedSurfaces = QVector<QImage>(numberOfAngles);
     rotatedSurfacesThinnedOut = QVector<QImage>(numberOfAngles);
-    rotatedEntryPoints = QVector<QVector<QVector<double>>>(numberOfAngles);
     newRotatedEntryPoints = QVector<QVector<entryPoint>>(numberOfAngles);
     QVector<surfaceInfo> surfaceList;
     QVector<newSurfaceInfo> newSurfaceList;
     if(useArrayFire){
-        rotatedSurfacesThinnedOut = makeRotatedImageStack(surfacePath, numberOfAngles);
+        rotatedSurfaces = makeRotatedImageStack(surfacePath, numberOfAngles);
+        rotatedSurfacesThinnedOut = rotatedSurfaces;
     }
     if(useMultiThreading){
         QtConcurrent::blockingMap(rotatedSurfacesThinnedOut,&threadBoi::thinOutSurfaceThreaded);
         for(int k = 0;k<numberOfAngles;k++){
-            rotatedEntryPoints[k]=QVector<QVector<double>>(rotatedSurfacesThinnedOut[0].width());
             newRotatedEntryPoints[k]=QVector<entryPoint>(rotatedSurfacesThinnedOut[0].width());
         }
         qDebug()<<"Struct wird erstellt"<<externalCorrectionTimer.restart();
-        surfaceList = makeStructVector(rotatedSurfacesThinnedOut,rotatedEntryPoints);
         newSurfaceList = makeNewStructVector(rotatedSurfacesThinnedOut,newRotatedEntryPoints);
         qDebug()<<"Struct wurde erstellt"<<externalCorrectionTimer.restart();
         QtConcurrent::blockingMap(surfaceList,&surface_fitting_test::propagateRayMultiThreaded);
         QtConcurrent::blockingMap(newSurfaceList,&surface_fitting_test::newPropagateRayMultiThreaded);
         qDebug()<<"Strahlen wurden MT propagiert"<<externalCorrectionTimer.restart();
-        for(int k=0; k<surfaceList.size();k++){
-            rotatedEntryPoints[k] = surfaceList[k].entryPoints;
-        }
         for(int k=0; k<newSurfaceList.size();k++){
             newRotatedEntryPoints[k] = newSurfaceList[k].ePoints;
         }
@@ -372,8 +368,8 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
         if(!useArrayFire){
             QVector<double>rotatedPoint=QVector<double>(2);
             double rotateBy = (2*M_PI/double(numberOfAngles))*k;
-            rotatedSurfacesThinnedOut[k] = QImage(surface.size(),QImage::Format_Grayscale8);
-            rotatedSurfacesThinnedOut[k].fill(0);
+            rotatedSurfaces[k] = QImage(surface.size(),QImage::Format_Grayscale8);
+            rotatedSurfaces[k].fill(0);
             for(int x = 0;x<surface.width();x++){
                 for(int y = 0;y<surface.height();y++){
                     if(getColor(surface,x,y)!=0){
@@ -382,12 +378,12 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         int yRound = std::round(rotatedPoint[1]);
                         for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
                             for(int yGauss = yRound-2;yGauss<=yRound+2;yGauss++){
-                                int newInt = getColor(rotatedSurfacesThinnedOut[k],xGauss,yGauss) + int(200.0*getValueForGaussDistribution(rotatedPoint[0],rotatedPoint[1],xGauss,yGauss,1));
+                                int newInt = getColor(rotatedSurfaces[k],xGauss,yGauss) + int(200.0*getValueForGaussDistribution(rotatedPoint[0],rotatedPoint[1],xGauss,yGauss,1));
                                 if(newInt>255){
                                     newInt=255;
                                     qDebug()<<"Grauwert zu hoch";
                                 }
-                                quint8 *dstRotSurface = (quint8*)(rotatedSurfacesThinnedOut[k].bits()+yGauss*rotatedSurfacesThinnedOut[k].bytesPerLine());
+                                quint8 *dstRotSurface = (quint8*)(rotatedSurfaces[k].bits()+yGauss*rotatedSurfaces[k].bytesPerLine());
                                 dstRotSurface[xGauss] = newInt;
                             }
                         }
@@ -396,22 +392,17 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
             }
         }
         if(!useMultiThreading){
-            rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
+            rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfaces[k]);
         }
-        rotatedEntryPoints[k] = QVector<QVector<double>>(surface.width());
         newRotatedEntryPoints[k] = QVector<entryPoint>(surface.width());
-        rotatedEntryPoints[k][0]={0,0,0,0};
         newRotatedEntryPoints[k][0]={0,0,0,0,0};
         newRotatedEntryPoints[k][0].xEntry = 0;
         //Strahl durch die "Projektion" propagieren
         for(int x = 1;x<surface.width();x++){
-            rotatedEntryPoints[k][x]={0,0};
             newRotatedEntryPoints[k][x].xEntry = x;
             if(getFirstValueFromTop(rotatedSurfacesThinnedOut[k],x-1)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[k],x)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[k],x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
                 QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[k],x,slopeSigma);
                 double exitAngle = getExitAngle(bufVec[1],mediumRI,sampleRI);
-                rotatedEntryPoints[k][x] = {bufVec[0],exitAngle};
-                rotatedEntryPoints[k][x].append(0);
                 newRotatedEntryPoints[k][x].gammaEntry = exitAngle;
                 newRotatedEntryPoints[k][x].slopeEntry = bufVec[1];
                 newRotatedEntryPoints[k][x].yEntry = bufVec[0];
@@ -423,7 +414,6 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                         QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                         if(intersection[0]>=X&&intersection[0]<X+1){
-                            rotatedEntryPoints[k][x][2] = intersection[2];
                             newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
                             success = true;
                         }else{
@@ -438,7 +428,6 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
                                 //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                                rotatedEntryPoints[k][x][2] = intersection[2];
                                 newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
                                 success = true;
                             }
@@ -448,7 +437,6 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X&&intersection[0]<X+1){
-                                rotatedEntryPoints[k][x][2] = intersection[2];
                                 newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
                                 //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                                 success = true;
@@ -465,7 +453,6 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                         QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                         if(intersection[0]<=X&&intersection[0]>X-1){
-                            rotatedEntryPoints[k][x][2] = intersection[2];
                             newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
                             success = true;
                         }else{
@@ -480,7 +467,6 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
                                 //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                                rotatedEntryPoints[k][x][2] = intersection[2];
                                 newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
                                 success = true;
                             }
@@ -490,7 +476,6 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X&&intersection[0]<X+1){
-                                rotatedEntryPoints[k][x][2] = intersection[2];
                                 newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
                                 //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                                 success = true;
@@ -502,19 +487,12 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                 }else{
                     //qDebug()<<"Strahl wurde total reflektiert!"<<k<<x;
                 }
-
-                rotatedEntryPoints[k][x].append(bufVec[1]);
                 // Wert in ein Sinogram malen
-                if(rotatedEntryPoints[k][x][2]<0){
-                    rotatedEntryPoints[k][x][2]=0;
-                    qDebug()<<"irgendwas schiefgelaufen beim rayPropagate";
-                }
+
                 if(newRotatedEntryPoints[k][x].lengthEntry < 0){
                     newRotatedEntryPoints[k][x].lengthEntry = 0;
                 }
 
-            }else{
-                rotatedEntryPoints[k][x] = {0,0,0,0};
             }
         }
         qDebug()<<"Rays propagated for Input Surface "<<k<<"of "<<numberOfAngles<<", time: "<<externalCorrectionTimer.elapsed();
@@ -589,9 +567,9 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
         }
     }
 
-    rotatedEntryPoints.resize(0);
     newRotatedEntryPoints.resize(0);
     rotatedSurfacesThinnedOut.resize(0);
+    rotatedSurfaces.resize(0);
     //rearrangedSinogramFails.save(inputPathSinogram+"\\"+nameRI2+nrOfProjString2+"_sinogramRearrangedFailsFromExternal.png");
     //rearrangedExternalSinogram.save(inputPathSinogram+"\\"+nameRI2+nrOfProjString2+"_sinogramRearrangedFromExternal.png"); Umstellung von save auf return!
     //rearrangedSinogramFails.fill(0);
@@ -1572,21 +1550,15 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
     sinogramHisto = QImage(inputSurface.width(),numberOfProjections+2,QImage::Format_Grayscale16);
     sinogramHisto.fill(0);
     transmissionHisto = sinogramHisto;
-    rotatedEntryPoints = QVector<QVector<QVector<double>>>(numberOfProjections);
     newRotatedEntryPoints = QVector<QVector<entryPoint>>(numberOfProjections);
     if(useMultiThreading){
         for(int k = 0;k<numberOfProjections;k++){
-            rotatedEntryPoints[k]=QVector<QVector<double>>(rotatedSurfacesThinnedOut[0].width());
             newRotatedEntryPoints[k] = QVector<entryPoint>(rotatedSurfacesThinnedOut[0].width());
         }
-        surfaceList = makeStructVector(rotatedSurfacesThinnedOut,rotatedEntryPoints);
         newSurfaceList = makeNewStructVector(rotatedSurfacesThinnedOut,newRotatedEntryPoints);
         QtConcurrent::blockingMap(surfaceList,&surface_fitting_test::propagateRayMultiThreaded);
         QtConcurrent::blockingMap(newSurfaceList,&surface_fitting_test::newPropagateRayMultiThreaded);
         qDebug()<<"Strahlen wurden MT propagiert"<<externalCorrectionTimer.restart();
-        for(int k=0; k<surfaceList.size();k++){
-            rotatedEntryPoints[k] = surfaceList[k].entryPoints;
-        }
         for(int k=0; k<newSurfaceList.size();k++){
             newRotatedEntryPoints[k] = newSurfaceList[k].ePoints;
         }
@@ -1643,12 +1615,9 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                 dstTrans[0]= int(65535);
             }
             quint16 *dstHisto = (quint16*)(sinogramHisto.bits()+q*sinogramHisto.bytesPerLine());
-            rotatedEntryPoints[q] = QVector<QVector<double>>(inputSurface.width());
             newRotatedEntryPoints[q] = QVector<entryPoint>(inputSurface.width());
             newRotatedEntryPoints[q][0].xEntry = 0;
-            rotatedEntryPoints[q][0]={0,0,0};
             for(int x = 1;x<inputSurface.width();x++){
-                rotatedEntryPoints[q][x]={0,0};
                 newRotatedEntryPoints[q][x].xEntry = x;
                 if(createTransmission){
                     if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x)==0){
@@ -1658,8 +1627,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                 if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x-1)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
                     QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[q],x,ui->spinBox_slopeSigma->value());
                     double exitAngle = getExitAngle(bufVec[1],riMedium,riSample);
-                    rotatedEntryPoints[q][x] = {bufVec[0],exitAngle};
-                    rotatedEntryPoints[q][x].append(0);
                     newRotatedEntryPoints[q][x].yEntry = bufVec[0];
                     newRotatedEntryPoints[q][x].slopeEntry = bufVec[1];
                     newRotatedEntryPoints[q][x].gammaEntry = exitAngle;
@@ -1671,7 +1638,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X&&intersection[0]<X+1){
-                                rotatedEntryPoints[q][x][2] = intersection[2];
                                 newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
                                 success = true;
                             }else{
@@ -1686,7 +1652,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                     //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                                    rotatedEntryPoints[q][x][2] = intersection[2];
                                     newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
                                     success = true;
                                 }
@@ -1696,7 +1661,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                                 QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[0]>=X&&intersection[0]<X+1){
-                                    rotatedEntryPoints[q][x][2] = intersection[2];
                                     newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
                                     //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                                     success = true;
@@ -1713,7 +1677,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]<=X&&intersection[0]>X-1){
-                                rotatedEntryPoints[q][x][2] = intersection[2];
                                 newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
                                 success = true;
                             }else{
@@ -1728,7 +1691,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                     //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                                    rotatedEntryPoints[q][x][2] = intersection[2];
                                     newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
                                     success = true;
                                 }
@@ -1738,7 +1700,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                                 QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[0]>=X&&intersection[0]<X+1){
-                                    rotatedEntryPoints[q][x][2] = intersection[2];
                                     newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
                                     //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                                     success = true;
@@ -1747,18 +1708,8 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                                 }
                             }
                         }
-                    }else{
-                        //qDebug()<<"Strahl wurde total reflektiert!"<<q<<x;
                     }
-                    if(createBScans){
-                        bScan = propagateOctRayThroughHisto(rotatedHistoImages[q],bScan,double(x),rotatedEntryPoints[q][x][0],rotatedEntryPoints[q][x][1],rotatedEntryPoints[q][x][2],riMedium,riSample);
-                    }
-                    rotatedEntryPoints[q][x].append(bufVec[1]);
-                    // Wert in ein Sinogram malen
-                    if(rotatedEntryPoints[q][x][2]<0){
-                        rotatedEntryPoints[q][x][2]=0;
-                        qDebug()<<"irgendwas schiefgelaufen beim rayPropagate";
-                    }
+
                     if(newRotatedEntryPoints[q][x].lengthEntry <0){
                         newRotatedEntryPoints[q][x].lengthEntry = 0;
                     }
@@ -1779,8 +1730,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             dstTrans[x]= buf;
                         }
                     }
-                }else{
-                    rotatedEntryPoints[q][x] = {0,0,0,0};
                 }
             }
             double rotateBy = (2*M_PI/double(numberOfProjections))*q;
@@ -2073,14 +2022,16 @@ void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
     nrOfProjString = QString::number(numberOfProjections);
     rotatedHistoImages = QVector<QImage>(numberOfProjections);
     rotatedSurfacesThinnedOut = QVector<QImage>(numberOfProjections);
+    rotatedSurfaces = QVector<QImage>(numberOfProjections);
     if(useArrayFire){
         qDebug()<<"Surfaces rotated"<<bigTimer.elapsed();
-        rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
+        rotatedSurfaces = makeRotatedImageStack(inputPathSurface,numberOfProjections);
+        rotatedSurfacesThinnedOut = rotatedSurfaces;
         if(useMultiThreading){
             QtConcurrent::blockingMap(rotatedSurfacesThinnedOut,&threadBoi::thinOutSurfaceThreaded);
         }else{
             for(int k = 0; k<numberOfProjections;k++){
-                rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
+                rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfaces[k]);
             }
         }
         qDebug()<<"Surfaces thinned out"<<bigTimer.elapsed();
@@ -2091,8 +2042,8 @@ void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
         for(int k = 0;k<numberOfProjections;k++){
             QVector<double>rotatedPoint=QVector<double>(2);
             double rotateBy = (2*M_PI/double(numberOfProjections))*k;
-            rotatedSurfacesThinnedOut[k] = QImage(inputSurface.size(),QImage::Format_Grayscale8);
-            rotatedSurfacesThinnedOut[k].fill(0);
+            rotatedSurfaces[k] = QImage(inputSurface.size(),QImage::Format_Grayscale8);
+            rotatedSurfaces[k].fill(0);
             for(int x = 0;x<inputSurface.width();x++){
                 for(int y = 0;y<inputSurface.height();y++){
                     if(getColor(inputSurface,x,y)!=0){
@@ -2101,19 +2052,19 @@ void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
                         int yRound = std::round(rotatedPoint[1]);
                         for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
                             for(int yGauss = yRound-2;yGauss<=yRound+2;yGauss++){
-                                int newInt = getColor(rotatedSurfacesThinnedOut[k],xGauss,yGauss) + int(200.0*getValueForGaussDistribution(rotatedPoint[0],rotatedPoint[1],xGauss,yGauss,1));
+                                int newInt = getColor(rotatedSurfaces[k],xGauss,yGauss) + int(200.0*getValueForGaussDistribution(rotatedPoint[0],rotatedPoint[1],xGauss,yGauss,1));
                                 if(newInt>255){
                                     newInt=255;
                                     qDebug()<<"Grauwert zu hoch";
                                 }
-                                quint8 *dstRotSurface = (quint8*)(rotatedSurfacesThinnedOut[k].bits()+yGauss*rotatedSurfacesThinnedOut[k].bytesPerLine());
+                                quint8 *dstRotSurface = (quint8*)(rotatedSurfaces[k].bits()+yGauss*rotatedSurfaces[k].bytesPerLine());
                                 dstRotSurface[xGauss] = newInt;
                             }
                         }
                     }
                 }
             }
-            rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfacesThinnedOut[k]);
+            rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfaces[k]);
             rotatedHistoImages[k]=QImage(inputHisto.size(),QImage::Format_Grayscale8);
             rotatedHistoImages[k].fill(0);
             double rotationAngleHisto = double((2*M_PI)/double(numberOfProjections))*double(k);
@@ -2149,7 +2100,6 @@ void surface_fitting_test::on_pushButton_continousSimulation_clicked()
     while(riMedium<=ui->doubleSpinBox_endRiMedium->value()){
         on_pushButton_createSinogram_clicked();
         on_pushButton_newCorrection_clicked();
-        rotatedEntryPoints.resize(0);
         newRotatedEntryPoints.resize(0);
         sinogramHisto.fill(0);
         QString riString = QString::number(riMedium,'g',4);
@@ -2356,25 +2306,6 @@ void surface_fitting_test::on_checkBox_clockwise_stateChanged(int arg1)
         rotateClockwise = 1;
     }
     qDebug()<<rotateClockwise;
-}
-
-
-void surface_fitting_test::on_pushButton_startThread_clicked()
-{
-    connect(&thready,&threadBoi::thinnedOutSurface,this,&surface_fitting_test::fillInThinnedSurface);
-    QElapsedTimer timmer;
-    rotatedSurfacesThinnedOut = makeRotatedImageStack(inputPathSurface,numberOfProjections);
-    qDebug()<<"Gleich gehts los mit Multithreading!!";
-    timmer.start();
-    QtConcurrent::blockingMap(rotatedSurfacesThinnedOut,&threadBoi::thinOutSurfaceThreaded);
-    qDebug()<<"Multithreading dauerte:"<<timmer.elapsed();
-    displayImageLeft(rotatedSurfacesThinnedOut[300]);
-}
-
-
-void surface_fitting_test::on_pushButton_stopThread_clicked()
-{
-    emit on_stop();
 }
 
 

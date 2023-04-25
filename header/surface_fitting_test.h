@@ -128,10 +128,6 @@ private slots:
 
     void on_checkBox_clockwise_stateChanged(int arg1);
 
-    void on_pushButton_startThread_clicked();
-
-    void on_pushButton_stopThread_clicked();
-
     void on_spinBox_nrOfProjections_valueChanged(int arg1);
 
     void on_checkBox_useMultiThreading_stateChanged(int arg1);
@@ -181,12 +177,13 @@ private:
 //     */
     QVector<QVector<int>> travelledOnBackside;
     double straightAngle;
+    QVector<QImage> rotatedSurfaces;
     QVector<QImage> rotatedSurfacesThinnedOut;
     QVector<QImage> rotatedHistoImages;
-    /**
-     * [Number of tomogram], [x], [y, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche]
-     */
-    QVector<QVector<QVector<double>>>rotatedEntryPoints;
+//    /**
+//     * [Number of tomogram], [x], [y, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche]
+//     */
+//    QVector<QVector<QVector<double>>>rotatedEntryPoints;
     QVector<QVector<entryPoint>>newRotatedEntryPoints;
     int numberOfProjections;
     QString nrOfProjString;

@@ -737,32 +737,6 @@
     <bool>true</bool>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton_startThread">
-   <property name="geometry">
-    <rect>
-     <x>1030</x>
-     <y>420</y>
-     <width>75</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>start Thread</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButton_stopThread">
-   <property name="geometry">
-    <rect>
-     <x>1140</x>
-     <y>420</y>
-     <width>75</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>stop Thread</string>
-   </property>
-  </widget>
   <widget class="QLineEdit" name="lineEdit_threadedOutput">
    <property name="geometry">
     <rect>
