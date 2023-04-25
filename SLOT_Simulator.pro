@@ -9,6 +9,7 @@ CONFIG += c++11
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    source/polyfit.cpp \
     source/refraction.cpp \
     source/dejitter.cpp \
     source/main.cpp \
@@ -19,6 +20,7 @@ SOURCES += \
 HEADERS += \
     header/dejitter.h \
     header/mainwindow.h \
+    header/polyfit.h \
     header/refraction.h \
     header/surface_fitting_test.h \
     header/threadboi.h

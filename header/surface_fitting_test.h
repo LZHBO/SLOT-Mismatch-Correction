@@ -19,6 +19,7 @@
 #include <QFuture>
 #include <QFutureWatcher>
 #include <header/refraction.h>
+#include <header/polyfit.h>
 
 
 
@@ -113,6 +114,7 @@ private slots:
 private:
     Ui::surface_fitting_test *ui;
     refraction *ref;
+    polyFit *poly;
     threadBoi thready;
     QString inputPathSurface;
     QString inputPathHisto;

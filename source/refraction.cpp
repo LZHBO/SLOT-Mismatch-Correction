@@ -15,7 +15,7 @@ refraction::~refraction()
 
 void refraction::on_pushButton_browse_clicked()
 {
-    QString file_name = QFileDialog::getOpenFileName(this,tr("Open File"), QDir::homePath(), tr("Images (*.png *.xpm *.jpg"));
+    QString file_name = QFileDialog::getOpenFileName(this,tr("Open File"), QDir::homePath(), tr("Images (*.png *.xpm *.jpg *.tif *.tiff"));
 
     if(!file_name.isEmpty()){
         QMessageBox::information(this, "...", file_name);
@@ -26,6 +26,19 @@ void refraction::on_pushButton_browse_clicked()
         double centerY = mom.m01/mom.m00;
         qDebug()<<"Moment des Bildes in X: "<<centerX;
         qDebug()<<"Moment des Bildes in Y: "<<centerY;
+
+        cv::Mat out;
+
+        cv::threshold(matOriginal,out,20,255,cv::THRESH_BINARY);
+
+        std::vector<std::vector<cv::Point>> contours;
+        std::vector<cv::Vec4i> hierarchy;
+
+        cv::findContours(out,contours,hierarchy,cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
+
+        cv::drawContours(matOriginal,contours,0,100,2);
+
+        cv::imshow("contours",matOriginal);
     }
 }
 

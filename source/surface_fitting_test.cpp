@@ -1850,23 +1850,26 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-    determineTeleError(momentsList);
-    momentsList = makeListRelativeAndScaled(momentsList);
-    QVector<double> fittedRI(momentsList.size());
-    for (int x = 2; x<momentsList.size()-2;x++){
-        fittedRI[x] = getFittingSampleRI(rotatedSurfacesThinnedOut[0],x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.001,0.1);
-        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
-    }
-    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
-    fittedRI.removeAll(333);
-    fittedRI.removeAll(777);
-    fittedRI.removeAll(0);
-    qDebug()<<fittedRI;
-    double sum=0;
-    for(int i = 0; i<fittedRI.size();i++){
-        sum = sum + fittedRI[i];
-    }
-    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
+//    determineTeleError(momentsList);
+//    momentsList = makeListRelativeAndScaled(momentsList);
+//    QVector<double> fittedRI(momentsList.size());
+//    for (int x = 2; x<momentsList.size()-2;x++){
+//        fittedRI[x] = getFittingSampleRI(rotatedSurfacesThinnedOut[0],x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.001,0.1);
+//        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
+//    }
+//    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
+//    fittedRI.removeAll(333);
+//    fittedRI.removeAll(777);
+//    fittedRI.removeAll(0);
+//    qDebug()<<fittedRI;
+//    double sum=0;
+//    for(int i = 0; i<fittedRI.size();i++){
+//        sum = sum + fittedRI[i];
+//    }
+//    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
+
+    poly = new polyFit();
+    poly->maini(0,0);
 }
 
 void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)
