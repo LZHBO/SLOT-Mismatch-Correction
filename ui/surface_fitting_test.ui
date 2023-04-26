@@ -364,22 +364,6 @@
     <string>arithMiddleiSgma</string>
    </property>
   </widget>
-  <widget class="QSpinBox" name="spinBox_arithMiddleSigma">
-   <property name="geometry">
-    <rect>
-     <x>460</x>
-     <y>40</y>
-     <width>42</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="minimum">
-    <number>1</number>
-   </property>
-   <property name="value">
-    <number>1</number>
-   </property>
-  </widget>
   <widget class="QPushButton" name="pushButton_rotateSurfaceAndHisto">
    <property name="geometry">
     <rect>
@@ -800,6 +784,19 @@
    </property>
    <property name="text">
     <string>Open OpenCV</string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="spinBox_ariMiddleSigma">
+   <property name="geometry">
+    <rect>
+     <x>460</x>
+     <y>40</y>
+     <width>42</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="minimum">
+    <number>0</number>
    </property>
   </widget>
  </widget>

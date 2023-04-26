@@ -4,6 +4,7 @@
 double surface_fitting_test::riMediumMT = 1;
 double surface_fitting_test::riSampleMT = 1;
 int surface_fitting_test::slopeSigmaMT = 1;
+int surface_fitting_test::slopePxlNoMT = 1;
 
 surface_fitting_test::surface_fitting_test(QWidget *parent) :
     QWidget(parent),
@@ -20,7 +21,7 @@ surface_fitting_test::~surface_fitting_test()
 
 void surface_fitting_test::on_pushButton_loadAndDisplay_clicked()
 {
-    arithMiddleSigma = ui->spinBox_arithMiddleSigma->value();
+    arithMiddleSigma = ui->spinBox_ariMiddleSigma->value();
     inputPathSurface = ui->lineEdit_inputSurface->text();
     inputPathSurface.replace("\\","/",Qt::CaseSensitivity());
     if(inputSurface.load(inputPathSurface)==0){
@@ -43,7 +44,7 @@ void surface_fitting_test::on_pushButton_loadAndDisplay_clicked()
 
 void surface_fitting_test::on_pushButton_loadAndDisplaySinogram_clicked()
 {
-    arithMiddleSigma = ui->spinBox_arithMiddleSigma->value();
+    arithMiddleSigma = ui->spinBox_ariMiddleSigma->value();
     inputPathSurface = ui->lineEdit_inputSurface->text();
     inputPathSurface.replace("\\","/",Qt::CaseSensitivity());
     if(inputSurface.load(inputPathSurface)==0){
@@ -353,7 +354,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
             newRotatedEntryPoints[k]=QVector<entryPoint>(rotatedSurfacesThinnedOut[0].width());
         }
         qDebug()<<"Struct wird erstellt"<<externalCorrectionTimer.restart();
-        newSurfaceList = makeNewStructVector(rotatedSurfacesThinnedOut,newRotatedEntryPoints);
+        newSurfaceList = makeNewStructVector(rotatedSurfacesThinnedOut,rotatedSurfaces,newRotatedEntryPoints);
         qDebug()<<"Struct wurde erstellt"<<externalCorrectionTimer.restart();
         QtConcurrent::blockingMap(surfaceList,&surface_fitting_test::propagateRayMultiThreaded);
         QtConcurrent::blockingMap(newSurfaceList,&surface_fitting_test::newPropagateRayMultiThreaded);
@@ -911,15 +912,17 @@ QVector<surface_fitting_test::surfaceInfo> surface_fitting_test::makeStructVecto
     return returnList;
 }
 
-QVector<surface_fitting_test::newSurfaceInfo> surface_fitting_test::makeNewStructVector(QVector<QImage> imageList, QVector<QVector<entryPoint> > pointList)
+QVector<surface_fitting_test::newSurfaceInfo> surface_fitting_test::makeNewStructVector(QVector<QImage> imageListThinnedSurface, QVector<QImage> imageListRotSurface, QVector<QVector<entryPoint> > pointList)
 {
-    QVector<newSurfaceInfo> returnList(imageList.size());
-    for(int k=0; k<imageList.size();k++){
-        returnList[k].thinnedOut = imageList[k];
+    QVector<newSurfaceInfo> returnList(imageListThinnedSurface.size());
+    for(int k=0; k<imageListThinnedSurface.size();k++){
+        returnList[k].thinnedOut = imageListThinnedSurface[k];
         returnList[k].ePoints = pointList[k];
+        returnList[k].rotSurface = imageListRotSurface[k];
     }
     return returnList;
 }
+
 
 int surface_fitting_test::propagateRayMultiThreaded(surfaceInfo &surfaceList)
 {
@@ -1135,7 +1138,54 @@ int surface_fitting_test::newPropagateRayMultiThreaded(newSurfaceInfo &surfaceLi
     return 1;
 }
 
-int surface_fitting_test::getFirstValueFromTopStatic(QImage image, int X)
+int surface_fitting_test::getPolySlopeAtEntry(QImage &surface, entryPoint &ePoint)
+{
+    poly = new polyFit();
+    if(ePoint.xEntry!=0){
+        int size=(slopeSigmaMT*2+1);
+        double **array;
+        array = new double*[size];
+        for(size_t i = 0; i < size; i++) {
+            array[i] = new double[size];
+        }
+        for(size_t i = 0; i < size; i++) {
+            for(size_t j = 0; j < size; j++) {
+                array[i][j] = 0.;
+            }
+        }
+        QVector<double> xValues(size);
+        QVector<double> yValues = xValues;
+        qDebug()<<"xValues allokierte Größe: "<<xValues.size();
+        qDebug()<<"leeres array: "<<array;
+        int realsize = 0;
+        qDebug()<<"Folgende Infos sind über den Eintrittspunkt bekannt: ";
+        qDebug()<<"Eintrittspunkt X: "<<ePoint.xEntry<<"\n Eintritt Y: "<<ePoint.yEntry<<"\n Steigung bei x/y: "<<ePoint.slopeEntry;
+        for( int x = ePoint.xEntry-slopeSigmaMT; x<=ePoint.xEntry+slopeSigmaMT;x++){
+            int firstValueFromTop = getFirstValueFromTopStatic(surface,x);
+            qDebug()<<"First Value from top: "<<x<<firstValueFromTop;
+            QVector<int> aScan = fillVectorWithAscan(surface,x);
+            double ariMi = getArithmicMiddle(aScan,firstValueFromTop,slopePxlNoMT);
+            qDebug()<<"AriMiddle: "<< ariMi;
+            xValues[realsize]=x-ePoint.xEntry;
+            yValues[realsize]=ariMi;
+            array[realsize][realsize]=1;
+            realsize++;
+        }
+        qDebug()<<"Folgende X-Werte wurden bestimmt: "<<xValues;
+        qDebug()<<"Folgende Y-Werte wurden bestimmt: "<<yValues;
+        qDebug()<<"Folgende Weights wurden bestimmt: "<<array;
+        //hier kommt dann der call zum polyFit
+        //double gamba = poly->maini(0,0);
+        double gamba = poly->getSlope(xValues,yValues,array);
+        qDebug()<<"Gamba?"<<gamba;
+        poly->deleteLater();
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+int surface_fitting_test::getFirstValueFromTopStatic(QImage &image, int X)
 {
     for(int y = 0;y<image.height();y++){
         if(getColorStatic(image,X,y)!=0){
@@ -1155,7 +1205,7 @@ int surface_fitting_test::getFirstValueFromBottomStatic(QImage image, int X)
     return 0;
 }
 
-int surface_fitting_test::getColorStatic(QImage image, int x, int y)
+int surface_fitting_test::getColorStatic(QImage &image, int x, int y)
 {
     QColor color = image.pixelColor(x,y);
     return color.green();
@@ -1509,6 +1559,8 @@ void surface_fitting_test::on_pushButton_getSlopeAt_clicked()
 
 void surface_fitting_test::on_spinBox_aScan_valueChanged(int arg1)
 {
+    arithMiddleSigma = ui->spinBox_ariMiddleSigma->value();
+    on_spinBox_rotateDisplayImageBy_valueChanged(ui->spinBox_rotateDisplayImageBy->value());
     QVector<double> slope{0,0};
     slope = getSlopeAtEntry(bufferImg,arg1,ui->spinBox_slopeSigma->value());
     if(slope[1]!=999){
@@ -1526,6 +1578,7 @@ void surface_fitting_test::on_spinBox_slopeSigma_valueChanged(int arg1)
         qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
         drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
     }
+    slopeSigmaMT = arg1;
 }
 
 
@@ -1543,6 +1596,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
     QElapsedTimer externalCorrectionTimer;
     externalCorrectionTimer.start();
     slopeSigmaMT = ui->spinBox_slopeSigma->value();
+    slopePxlNoMT = ui->spinBox_ariMiddleSigma->value();
     QVector<surfaceInfo> surfaceList;
     QVector<newSurfaceInfo> newSurfaceList;
     bool createBScans = ui->checkBox_createBScans->isChecked();
@@ -1555,7 +1609,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
         for(int k = 0;k<numberOfProjections;k++){
             newRotatedEntryPoints[k] = QVector<entryPoint>(rotatedSurfacesThinnedOut[0].width());
         }
-        newSurfaceList = makeNewStructVector(rotatedSurfacesThinnedOut,newRotatedEntryPoints);
+        newSurfaceList = makeNewStructVector(rotatedSurfacesThinnedOut,rotatedSurfaces,newRotatedEntryPoints);
         QtConcurrent::blockingMap(surfaceList,&surface_fitting_test::propagateRayMultiThreaded);
         QtConcurrent::blockingMap(newSurfaceList,&surface_fitting_test::newPropagateRayMultiThreaded);
         qDebug()<<"Strahlen wurden MT propagiert"<<externalCorrectionTimer.restart();
@@ -1979,31 +2033,7 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-//    determineTeleError(momentsList);
-//    momentsList = makeListRelativeAndScaled(momentsList);
-//    QVector<double> fittedRI(momentsList.size());
-//    for (int x = 2; x<momentsList.size()-2;x++){
-//        fittedRI[x] = getFittingSampleRI(rotatedSurfacesThinnedOut[0],x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.001,0.1);
-//        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
-//    }
-//    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
-//    fittedRI.removeAll(333);
-//    fittedRI.removeAll(777);
-//    fittedRI.removeAll(0);
-//    qDebug()<<fittedRI;
-//    double sum=0;
-//    for(int i = 0; i<fittedRI.size();i++){
-//        sum = sum + fittedRI[i];
-//    }
-//    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
-
-    getBackExitPointAndAngle(rotatedSurfacesThinnedOut[0],ui->spinBox_aScan->value(),ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value());
-}
-
-void surface_fitting_test::on_spinBox_arithMiddleSigma_valueChanged(int arg1)
-{
-    arithMiddleSigma = arg1;
-    on_spinBox_rotateDisplayImageBy_valueChanged(ui->spinBox_rotateDisplayImageBy->value());
+    getPolySlopeAtEntry(rotatedSurfaces[0],newRotatedEntryPoints[0][100]);
 }
 
 
@@ -2236,7 +2266,7 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
 {
     riMedium = ui->doubleSpinBox_riMedium->value();
     riSample = ui->doubleSpinBox_riSample->value();
-    arithMiddleSigma = ui->spinBox_arithMiddleSigma->value();
+    arithMiddleSigma = ui->spinBox_ariMiddleSigma->value();
     const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"E:/mSLOT/");
     QDir saveDir(folderpathSave);
     QString savePath = saveDir.absolutePath();
@@ -2349,3 +2379,16 @@ void surface_fitting_test::on_pushButton_openOpenCV_clicked()
     connect(ref,&refraction::sendMomentsList,this,&surface_fitting_test::getMomentsList);
 }
 
+
+void surface_fitting_test::on_spinBox_ariMiddleSigma_valueChanged(int arg1)
+{
+    QVector<double> slope{0,0};
+    arithMiddleSigma = arg1;
+    slopePxlNoMT = arg1;
+    on_spinBox_rotateDisplayImageBy_valueChanged(ui->spinBox_rotateDisplayImageBy->value());
+    slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),ui->spinBox_slopeSigma->value());
+    if(slope[1]!=999){
+        qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
+        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
+}
+}

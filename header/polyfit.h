@@ -8,6 +8,7 @@
 #include <math.h>
 #include <cmath>
 #include <iomanip>
+#include <QDebug>
 
 using namespace std;
 
@@ -25,6 +26,7 @@ class polyFit : public QObject
 public:
     explicit polyFit(QObject *parent = nullptr);
     int maini(int argc, char *argv[]);
+    double getSlope(QVector<double> xVec, QVector<double> yVec, double **Weights);
 
 signals:
 

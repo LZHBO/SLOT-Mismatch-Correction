@@ -64,6 +64,7 @@ class surface_fitting_test : public QWidget
 
     struct newSurfaceInfo{
         QImage thinnedOut;
+        QImage rotSurface;
         QVector<entryPoint> ePoints;
     };
 
@@ -74,6 +75,7 @@ public:
     static double riMediumMT;
     static double riSampleMT;
     static int slopeSigmaMT;
+    static int slopePxlNoMT;
 
 private slots:
     void on_pushButton_loadAndDisplay_clicked();
@@ -95,8 +97,6 @@ private slots:
     void on_pushButton_correctSinogram_clicked();
 
     void on_pushButton_testMath_clicked();
-
-    void on_spinBox_arithMiddleSigma_valueChanged(int arg1);
 
     void on_pushButton_rotateSurfaceAndHisto_clicked();
 
@@ -137,6 +137,8 @@ private slots:
     void on_radioButton_PD_toggled(bool checked);
 
     void on_pushButton_openOpenCV_clicked();
+
+    void on_spinBox_ariMiddleSigma_valueChanged(int arg1);
 
 private:
     Ui::surface_fitting_test *ui;
@@ -232,13 +234,14 @@ private:
     QVector<QImage> makeRotatedImageStack(QString path, int stackSize);
     void learningAF(int size);
     QVector<surfaceInfo> makeStructVector(QVector<QImage> imageList, QVector<QVector<QVector<double>>> pointList);
-    QVector<newSurfaceInfo> makeNewStructVector(QVector<QImage> imageList, QVector<QVector<entryPoint>> pointList);
+    QVector<newSurfaceInfo> makeNewStructVector(QVector<QImage> imageListThinnedSurface, QVector<QImage> imageListRotSurface, QVector<QVector<entryPoint>> pointList);
     static int propagateRayMultiThreaded(surfaceInfo &surfaceList);
     static int newPropagateRayMultiThreaded(newSurfaceInfo &surfaceList);
 
-    static int getFirstValueFromTopStatic(QImage image, int X);
+    int getPolySlopeAtEntry(QImage &surface, entryPoint &ePoint);
+    static int getFirstValueFromTopStatic(QImage &image, int X);
     static int getFirstValueFromBottomStatic(QImage image, int X);
-    static int getColorStatic(QImage image, int x, int y);
+    static int getColorStatic(QImage &image, int x, int y);
     static QVector<double> getSlopeAtEntryStatic(QImage image, int X, int sigma);
     static double getExitAngleStatic(double slope, double n1, double n2);
     static QVector<double> parameterizeFromPointsStatic(double x1, double y1, double x2, double y2);
