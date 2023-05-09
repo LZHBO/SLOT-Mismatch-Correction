@@ -479,20 +479,22 @@ const double fixedinterval, double *beta, double **Weights, double **XTWXInv) {
 
     if (fixedinter) beta[0] = fixedinterval;
 
-    cout << "Matrix X" << endl;
-    displayMat(X,n,k+1);
+//    cout << "Matrix X" << endl;
+//    displayMat(X,n,k+1);
 
-    cout << "Matrix XT" << endl;
-    displayMat(XT,k+1,n);
+//    cout << "Matrix XT" << endl;
+//    displayMat(XT,k+1,n);
 
-    cout << "Matrix XTW" << endl;
-    displayMat(XTW,k+1,n);
+//    cout << "Matrix XTW" << endl;
+//    displayMat(XTW,k+1,n);
 
-    cout << "Matrix XTWXInv" << endl;
-    displayMat(XTWXInv,k+1,k+1);
+//    cout << "Matrix XTWXInv" << endl;
+//    displayMat(XTWXInv,k+1,k+1);
 
 
 }
+
+
 
 // Calculate the polynomial at a given x value
 // **************************************************************
@@ -836,37 +838,28 @@ int polyFit::maini(int argc, char *argv[]) {
 
 double polyFit::getSlope(QVector<double> xVec, QVector<double> yVec, double **Weights)
 {
-    cout << "Polynomial fit!" << endl;
-    qDebug()<<"Übergebene xValues: "<<xVec;
+//    cout << "Polynomial fit!" << endl;
+//    qDebug()<<"Übergebene xValues: "<<xVec;
 
     // Input values
     // **************************************************************
     size_t k = 2;                                    // Polynomial order
     bool fixedinter = false;                         // Fixed the intercept (coefficient A0)
-    int wtype = 0;                                   // Weight: 0 = none (default), 1 = sigma, 2 = 1/sigma^2
     double fixedinterval = 0.;                       // The fixed intercept value (if applicable)
-    double alphaval = 0.05;                          // Critical apha value
 
     double* x = new double[xVec.size()]{0};
     double* y = new double[yVec.size()]{0};
-    double* erry = new double[xVec.size()];
-/*    double x[] = {0., 0.0, 0., 0.0, 0.0, 2.0, 2.0, 4.0, 4.0};
-    double y[] = {0., 0.0, 0., 0.0, 0.21723, 0.83445, 0.99924, 4.43292, 4.77895};
-    double erry[] = {0.1, 0.3, 0.2, 0.4, 0.1, 0.3};  */     // Data points (err on y) (if applicable)
     for(int i = 0; i<xVec.size(); i++){
         x[i] = xVec[i];
         y[i] = yVec[i];
-        erry[i] = 0;
     }
 
     // Definition of other variables
     // **************************************************************
     size_t n = 0;                                    // Number of data points (adjusted later)
     size_t nstar = 0;                                // equal to n (fixed intercept) or (n-1) not fixed
-    double coefbeta[3];                            // Coefficients of the polynomial
-    double serbeta[3];                             // Standard error on coefficients
-    double tstudentval = 0.;                         // Student t value
-    double SE = 0.;                                  // Standard error
+    double coefbeta[3]={0,0,0};                            // Coefficients of the polynomial
+
 
     double **XTWXInv;                                // Matrix XTWX Inverse [k+1,k+1]
     //double **Weights;                                // Matrix Weights [n,n]
@@ -878,19 +871,19 @@ double polyFit::getSlope(QVector<double> xVec, QVector<double> yVec, double **We
     nstar = n-1;
     if (fixedinter) nstar = n;
 
-    cout << "Number of points: " << n << endl;
-    cout << "Polynomial order: " << k << endl;
-    if (fixedinter) {
-        cout << "A0 is fixed!" << endl;
-    } else {
-        cout << "A0 is adjustable!" << endl;
-    }
+    qDebug() << "Number of points: " << n;
+//    cout << "Polynomial order: " << k << endl;
+//    if (fixedinter) {
+//        cout << "A0 is fixed!" << endl;
+//    } else {
+//        cout << "A0 is adjustable!" << endl;
+//    }
 
     if (k>nstar) {
         cout << "The polynomial order is too high. Max should be " << n << " for adjustable A0 ";
         cout << "and " << n-1 << " for fixed A0. ";
         cout << "Program stopped" << endl;
-        return -1;
+        return -100;
     }
 
     if (k==nstar) {
@@ -901,18 +894,13 @@ double polyFit::getSlope(QVector<double> xVec, QVector<double> yVec, double **We
     XTWXInv = Make2DArray(k+1,k+1);
     //Weights = Make2DArray(n,n);
 
-    // Build the weight matrix
-    // **************************************************************
-    //CalculateWeights(erry, Weights, n, wtype);
 
-    cout << "Weights" << endl;
-    displayMat(Weights,n,n);
 
-    if (determinant(Weights,n)==0.) {
-        cout << "One or more points have 0 error. Review the errors on points or use no weighting. ";
-        cout << "Program stopped" << endl;
-        return -1;
-    }
+//    if (determinant(Weights,n)==0.) {
+//        cout << "One or more points have 0 error. Review the errors on points or use no weighting. ";
+//        cout << "Program stopped" << endl;
+//        return -1;
+//    }
 
     // Calculate the coefficients of the fit
     // **************************************************************
@@ -921,44 +909,26 @@ double polyFit::getSlope(QVector<double> xVec, QVector<double> yVec, double **We
 
     // Calculate related values
     // **************************************************************
-    double RSS = CalculateRSS(x,y,coefbeta,Weights,std::fixed,n,k+1);
-    double TSS = CalculateTSS(x,y,coefbeta,Weights,fixedinter,n,k+1);
-    double R2 = CalculateR2COD(x,y,coefbeta,Weights,fixedinter,n,k+1);
-    double R2Adj = CalculateR2Adj(x,y,coefbeta,Weights,fixedinter,n,k+1);
+    //double RSS = CalculateRSS(x,y,coefbeta,Weights,std::fixed,n,k+1);
 
-    if ((nstar-k)>0) {
-        SE = sqrt(RSS/(nstar-k));
-        tstudentval = fabs(CalculateTValueStudent(nstar-k, 1.-0.5*alphaval));
-    }
-    cout << "t-student value: " << tstudentval << endl << endl;
+//    if ((nstar-k)>0) {
+//        SE = sqrt(RSS/(nstar-k));
+//        tstudentval = fabs(CalculateTValueStudent(nstar-k, 1.-0.5*alphaval));
+//    }
+//    cout << "t-student value: " << tstudentval << endl << endl;
 
     // Calculate the standard errors on the coefficients
     // **************************************************************
-    CalculateSERRBeta(fixedinter,SE,k,serbeta,XTWXInv);
+    //CalculateSERRBeta(fixedinter,SE,k,serbeta,XTWXInv);
 
     // Display polynomial
     // **************************************************************
-    DisplayPolynomial(k);
+    //DisplayPolynomial(k);
 
     // Display polynomial coefficients
     // **************************************************************
-    DisplayCoefs(k, nstar, tstudentval, coefbeta, serbeta);
+    //DisplayCoefs(k, nstar, tstudentval, coefbeta, serbeta);
 
-    // Display statistics
-    // **************************************************************
-    //DisplayStatistics(n,nstar,k,RSS,R2,R2Adj,SE);
-
-    // Display ANOVA table
-    // **************************************************************
-    //DisplayANOVA(nstar, k, TSS, RSS);
-
-    // Write the prediction and confidence intervals
-    // **************************************************************
-    //WriteCIBands("CIBands2.dat",x,coefbeta,XTWXInv,tstudentval,SE,n,k);
-
-    // Display the covariance and correlation matrix
-    // **************************************************************
-    //DisplayCovCorrMatrix(k, SE, fixedinter, XTWXInv);
-
-    return 10;
+    return coefbeta[1];
 }
+

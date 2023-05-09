@@ -48,8 +48,14 @@ void refraction::on_pushButton_loadStack_clicked()
     const QString folderpathGaussList = QFileDialog::getExistingDirectory(this,tr("Gauss Folder"),"E:/mSLOT/");
     QDir dir(folderpathGaussList);
     gaussList = dir.entryInfoList();
-    gaussList.removeFirst();
-    gaussList.removeFirst();
+    while(!gaussList.first().absoluteFilePath().endsWith(".jpg")){
+        qDebug()<<"Erster Eintrag entfernt, weil es kein Bild war!";
+        gaussList.removeFirst();
+    }
+    while(!gaussList.last().absoluteFilePath().endsWith(".jpg")){
+        qDebug()<<"Letzter Eintrag entfernt, weil es kein Bild war!";
+        gaussList.removeLast();
+    }
     qDebug()<<gaussList;
     cv::Mat img;
     cv::Mat weights = cv::Mat::zeros(1024,1280,cv::IMREAD_GRAYSCALE);

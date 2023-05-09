@@ -587,7 +587,7 @@ void surface_fitting_test::drawAndDisplaySlope(QImage image, int X, int Y, doubl
     }
     double gamma = getExitAngle(slope,riMedium,riSample);
     qDebug()<<gamma;
-    for(int y = 0;y<150;y++){
+    for(int y = 0;y<image.height()/2;y++){
         drawn.setPixelColor(X+std::round(y*qTan(gamma)),y+Y,Qt::red);
     }
     displayImageLeft(drawn);
@@ -1043,6 +1043,7 @@ int surface_fitting_test::newPropagateRayMultiThreaded(newSurfaceInfo &surfaceLi
                surfaceList.ePoints[x].slopeEntry = bufVec[1];
                surfaceList.ePoints[x].lengthEntry = 0;
                surfaceList.ePoints[x].xEntry = x;
+               //hier könnte der neue PolyFit eingefügt werden!!
                if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
                    int X=x;
                    bool success = false;
@@ -1138,50 +1139,48 @@ int surface_fitting_test::newPropagateRayMultiThreaded(newSurfaceInfo &surfaceLi
     return 1;
 }
 
-int surface_fitting_test::getPolySlopeAtEntry(QImage &surface, entryPoint &ePoint)
+double surface_fitting_test::getPolySlopeAtEntry(QImage &surface, QVector<entryPoint> &ePoints, int X)
 {
-    poly = new polyFit();
-    if(ePoint.xEntry!=0){
-        int size=(slopeSigmaMT*2+1);
-        double **array;
-        array = new double*[size];
-        for(size_t i = 0; i < size; i++) {
-            array[i] = new double[size];
-        }
-        for(size_t i = 0; i < size; i++) {
-            for(size_t j = 0; j < size; j++) {
-                array[i][j] = 0.;
+    if(ePoints[X].yEntry!=0){
+
+        QVector<double> xValues;
+        QVector<double> yValues;
+        //        qDebug()<<"xValues allokierte Größe: "<<xValues.size();
+        //        qDebug()<<"leeres array: "<<array;
+        int realsize = 0;
+        //        qDebug()<<"Folgende Infos sind über den Eintrittspunkt bekannt: ";
+        //        qDebug()<<"Eintrittspunkt X: "<<ePoint.xEntry<<"\n Eintritt Y: "<<ePoint.yEntry<<"\n Steigung bei x/y: "<<ePoint.slopeEntry;
+        for( int x = X-slopeSigmaMT; x<=X+slopeSigmaMT;x++){
+            if(getFirstValueFromTop(surface,x)!=0){
+                //qDebug()<<"First Value from top: "<<x<<firstValueFromTop;
+                QVector<int> aScan = fillVectorWithAscan(surface,x);
+                double ariMi = getArithmicMiddle(aScan,getFirstValueFromTop(surface,x),slopePxlNoMT);
+                //qDebug()<<"AriMiddle: "<< ariMi;
+                xValues.append(x-X);
+                yValues.append(ariMi);
+                realsize++;
             }
         }
-        QVector<double> xValues(size);
-        QVector<double> yValues = xValues;
-        qDebug()<<"xValues allokierte Größe: "<<xValues.size();
-        qDebug()<<"leeres array: "<<array;
-        int realsize = 0;
-        qDebug()<<"Folgende Infos sind über den Eintrittspunkt bekannt: ";
-        qDebug()<<"Eintrittspunkt X: "<<ePoint.xEntry<<"\n Eintritt Y: "<<ePoint.yEntry<<"\n Steigung bei x/y: "<<ePoint.slopeEntry;
-        for( int x = ePoint.xEntry-slopeSigmaMT; x<=ePoint.xEntry+slopeSigmaMT;x++){
-            int firstValueFromTop = getFirstValueFromTopStatic(surface,x);
-            qDebug()<<"First Value from top: "<<x<<firstValueFromTop;
-            QVector<int> aScan = fillVectorWithAscan(surface,x);
-            double ariMi = getArithmicMiddle(aScan,firstValueFromTop,slopePxlNoMT);
-            qDebug()<<"AriMiddle: "<< ariMi;
-            xValues[realsize]=x-ePoint.xEntry;
-            yValues[realsize]=ariMi;
-            array[realsize][realsize]=1;
-            realsize++;
+        double **array;
+        array = new double*[realsize];
+        for(size_t i = 0; i < realsize; i++) {
+            array[i] = new double[realsize];
         }
-        qDebug()<<"Folgende X-Werte wurden bestimmt: "<<xValues;
-        qDebug()<<"Folgende Y-Werte wurden bestimmt: "<<yValues;
-        qDebug()<<"Folgende Weights wurden bestimmt: "<<array;
-        //hier kommt dann der call zum polyFit
-        //double gamba = poly->maini(0,0);
+        for(size_t i = 0; i < realsize; i++) {
+            for(size_t j = 0; j < realsize; j++) {
+                if(i==j){
+
+                    array[i][j] = 1;
+                }else{
+                    array[i][j] = 0.;
+                }
+            }
+        }
         double gamba = poly->getSlope(xValues,yValues,array);
         qDebug()<<"Gamba?"<<gamba;
-        poly->deleteLater();
-        return 1;
+        return gamba;
     }else{
-        return 0;
+        return 300;
     }
 }
 
@@ -1347,6 +1346,7 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
     myPoint.xEntry = xEntry;
     if(getFirstValueFromTop(thinSurface,xEntry-1)!=0 && getFirstValueFromTop(thinSurface,xEntry)!=0 && getFirstValueFromTop(thinSurface,xEntry+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
         QVector<double>bufVec = getSlopeAtEntry(thinSurface,xEntry,ui->spinBox_slopeSigma->value());
+        //Hier Polyfit-Option einfügen!!
         double exitAngle = getExitAngle(bufVec[1],mediaRI,samplRi);
 //        qDebug()<<"Entry Slope ist: "<<bufVec[1];
 //        qDebug()<<"Exit Angle in Probe: "<<exitAngle;
@@ -1446,7 +1446,7 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
     //qDebug()<<"Exit Slope ist: "<<exitSlope[1];
     double backExitAngle = getExitAngleAtBack(exitSlope[1],samplRi,mediaRI,myPoint.gammaEntry);
     //qDebug()<<"Winkel hinter der Oberfläche: "<<backExitAngle;
-    qDebug()<<"test, ob mein struct funzt: neu (ablenkung): "<<myPoint.gammaEntry;
+    //qDebug()<<"test, ob mein struct funzt: neu (ablenkung): "<<myPoint.gammaEntry;
     return {exitPositionX, exitSlope[0], backExitAngle};
 }else{
         return {double(xEntry),0,0};
@@ -1563,9 +1563,11 @@ void surface_fitting_test::on_spinBox_aScan_valueChanged(int arg1)
     on_spinBox_rotateDisplayImageBy_valueChanged(ui->spinBox_rotateDisplayImageBy->value());
     QVector<double> slope{0,0};
     slope = getSlopeAtEntry(bufferImg,arg1,ui->spinBox_slopeSigma->value());
+    double polySlope = getPolySlopeAtEntry(rotatedSurfaces[0],newRotatedEntryPoints[0],arg1);
     if(slope[1]!=999){
         qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
-        drawAndDisplaySlope(bufferImg,arg1,slope[0],slope[1],20);
+        qDebug()<<"polySlope at"<<ui->spinBox_aScan->value()<<"is: "<< polySlope;
+        drawAndDisplaySlope(bufferImg,arg1,newRotatedEntryPoints[0][arg1].yEntry,polySlope,20);
         //qDebug()<<getDeltaThetaForPartner(slope[1],riMedium,riSample);
     }
 }
@@ -1591,7 +1593,10 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
     double higherRI = riMedium;
     if(higherRI<riSample){
         higherRI = riSample;
-    }    riMediumMT = riMedium;
+    }
+    poly = new polyFit();
+    poly->deleteLater();
+    riMediumMT = riMedium;
     riSampleMT = riSample;
     QElapsedTimer externalCorrectionTimer;
     externalCorrectionTimer.start();
@@ -1680,16 +1685,25 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                 }
                 if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x-1)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
                     QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[q],x,ui->spinBox_slopeSigma->value());
-                    double exitAngle = getExitAngle(bufVec[1],riMedium,riSample);
                     newRotatedEntryPoints[q][x].yEntry = bufVec[0];
-                    newRotatedEntryPoints[q][x].slopeEntry = bufVec[1];
-                    newRotatedEntryPoints[q][x].gammaEntry = exitAngle;
-                    if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
+                    //polyfit option einfügen!!
+                    if(usePolyFit){
+                        newRotatedEntryPoints[q][x].slopeEntry = getPolySlopeAtEntry(rotatedSurfaces[q],newRotatedEntryPoints[q],x);
+                        newRotatedEntryPoints[q][x].gammaEntry = getExitAngle(newRotatedEntryPoints[q][x].slopeEntry,riMedium,riSample);
+                        if(x==100){
+                            qDebug()<<"Slope und gamma sind: "<<newRotatedEntryPoints[q][x].slopeEntry<<newRotatedEntryPoints[q][x].gammaEntry;
+                        }
+                    }else{
+                        double exitAngle = getExitAngle(bufVec[1],riMedium,riSample);
+                        newRotatedEntryPoints[q][x].gammaEntry = exitAngle;
+                        newRotatedEntryPoints[q][x].slopeEntry = bufVec[1];
+                    }
+                    if(newRotatedEntryPoints[q][x].gammaEntry>=0&&newRotatedEntryPoints[q][x].gammaEntry<1.0){  //Strahl wird nach rechts abgelenkt
                         int X=x;
                         bool success = false;
                         while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X+1)>0){
                             QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X), X+1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X+1));
-                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                            QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X&&intersection[0]<X+1){
                                 newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
@@ -1702,7 +1716,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<q<<x;
                             if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                 QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
-                                QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                                QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                     //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
@@ -1712,7 +1726,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             }
                             while(success == false && X>=x){
                                 QVector<double> surfaceVector = parameterizeFromPoints(X-1, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X-1), X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X));
-                                QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                                QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[0]>=X&&intersection[0]<X+1){
                                     newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
@@ -1723,12 +1737,12 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                                 }
                             }
                         }
-                    }else if(exitAngle<0&&exitAngle>-1.0){  //Strahl wird nach links abgelenkt
+                    }else if(newRotatedEntryPoints[q][x].gammaEntry<0&&newRotatedEntryPoints[q][x].gammaEntry>-1.0){  //Strahl wird nach links abgelenkt
                         int X=x;
                         bool success = false;
                         while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X-1) > 0){
                             QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X), X-1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X-1));
-                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                            QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]<=X&&intersection[0]>X-1){
                                 newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
@@ -1741,7 +1755,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<q<<x;
                             if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                 QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
-                                QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                                QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                     //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
@@ -1751,7 +1765,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             }
                             while(success == false && X<=x){
                                 QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X+1, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X+1));
-                                QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                                QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[0]>=X&&intersection[0]<X+1){
                                     newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
@@ -2033,9 +2047,37 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-    getPolySlopeAtEntry(rotatedSurfaces[0],newRotatedEntryPoints[0][100]);
+//    //getPolySlopeAtEntry(rotatedSurfaces[0],newRotatedEntryPoints[0][100]);
+//    determineTeleError(momentsList);
+//    momentsList = makeListRelativeAndScaled(momentsList);
+//    QVector<double> fittedRI(momentsList.size());
+//    for (int x = 2; x<momentsList.size()-2;x++){
+//        fittedRI[x] = getFittingSampleRI(rotatedSurfacesThinnedOut[0],x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.01,0.001,0.1);
+//        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
+//    }
+//    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
+//    fittedRI.removeAll(333);
+//    fittedRI.removeAll(777);
+//    fittedRI.removeAll(0);
+//    qDebug()<<fittedRI;
+//    double sum=0;
+//    for(int i = 0; i<fittedRI.size();i++){
+//        sum = sum + fittedRI[i];
+//    }
+//    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
+    QElapsedTimer time;
+    time.start();
+    poly = new polyFit();
+    for(int k = 0; k<rotatedSurfaces.size();k++){
+        for(int i = 0; i<rotatedSurfaces[0].width();i++){
+            if(newRotatedEntryPoints[k][i].yEntry!=0){
+                qDebug()<<"Nummer des AScans: "<<i;
+                getPolySlopeAtEntry(rotatedSurfaces[k],newRotatedEntryPoints[k],i);
+            }
+        }
+    }
+    qDebug()<<"Fit hat gedauert: "<<time.elapsed();
 }
-
 
 void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
 {
@@ -2351,6 +2393,7 @@ void surface_fitting_test::on_checkBox_useMultiThreading_stateChanged(int arg1)
         useMultiThreading = false;
     }else{
         useMultiThreading = true;
+        ui->checkBox_usePolyFit->setChecked(false);
     }
     qDebug()<<"Multithreading aktivier: "<<useMultiThreading;
 }
@@ -2390,5 +2433,14 @@ void surface_fitting_test::on_spinBox_ariMiddleSigma_valueChanged(int arg1)
     if(slope[1]!=999){
         qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
         drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
+    }
 }
+
+void surface_fitting_test::on_checkBox_usePolyFit_stateChanged(int arg1)
+{
+    usePolyFit = arg1;
+    if(arg1){
+    ui->checkBox_useMultiThreading->setChecked(false);
+    }
 }
+

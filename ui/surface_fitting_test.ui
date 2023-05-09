@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\mSLOT\MSQ_C1\2023_04_19\surface_-0.144-cor</string>
+    <string>C:\Users\o.hill\Pictures\surfacePlant</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -107,7 +107,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Search Sigma</string>
+    <string>Slope Sigma</string>
    </property>
   </widget>
   <widget class="QSpinBox" name="spinBox_slopeSigma">
@@ -171,7 +171,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.420000000000000</double>
+    <double>1.330000000000000</double>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_riSample">
@@ -225,7 +225,7 @@
     <number>1000</number>
    </property>
    <property name="value">
-    <number>10</number>
+    <number>800</number>
    </property>
   </widget>
   <widget class="QLabel" name="label_4">
@@ -290,7 +290,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>E:\mSLOT\MSQ_C1\2023_04_19\surface_-0.144-cor</string>
+    <string>C:\Users\o.hill\Pictures\internPlant</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">
@@ -748,7 +748,7 @@
    <property name="geometry">
     <rect>
      <x>1040</x>
-     <y>210</y>
+     <y>220</y>
      <width>91</width>
      <height>17</height>
     </rect>
@@ -764,7 +764,7 @@
    <property name="geometry">
     <rect>
      <x>1160</x>
-     <y>210</y>
+     <y>220</y>
      <width>82</width>
      <height>17</height>
     </rect>
@@ -797,6 +797,22 @@
    </property>
    <property name="minimum">
     <number>0</number>
+   </property>
+   <property name="value">
+    <number>3</number>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="checkBox_usePolyFit">
+   <property name="geometry">
+    <rect>
+     <x>1040</x>
+     <y>200</y>
+     <width>91</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Use PolyFit</string>
    </property>
   </widget>
  </widget>

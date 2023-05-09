@@ -140,6 +140,8 @@ private slots:
 
     void on_spinBox_ariMiddleSigma_valueChanged(int arg1);
 
+    void on_checkBox_usePolyFit_stateChanged(int arg1);
+
 private:
     Ui::surface_fitting_test *ui;
     refraction *ref;
@@ -167,11 +169,12 @@ private:
     bool accountForReflection = 0;
     bool useArrayFire = 0;
     bool useMultiThreading = 0;
+    bool usePolyFit = 0;
     bool correctingPmtSinogram = true;
     signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
     double mmPerPixelOnSensor = 0.0031;
-    double mmPerPixelInReco = 0.01765;
+    double mmPerPixelInReco = 0.01752;
     double correctedSensorRatio;
     QVector<QVector<double>> momentsList;
 //    /**
@@ -238,7 +241,7 @@ private:
     static int propagateRayMultiThreaded(surfaceInfo &surfaceList);
     static int newPropagateRayMultiThreaded(newSurfaceInfo &surfaceList);
 
-    int getPolySlopeAtEntry(QImage &surface, entryPoint &ePoint);
+    double getPolySlopeAtEntry(QImage &surface, QVector<entryPoint> &ePoints, int X);
     static int getFirstValueFromTopStatic(QImage &image, int X);
     static int getFirstValueFromBottomStatic(QImage image, int X);
     static int getColorStatic(QImage &image, int x, int y);
