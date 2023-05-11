@@ -715,7 +715,7 @@ void DisplayCovCorrMatrix(const size_t k, const double sigma, const bool fixed, 
 
 // The main program
 // **************************************************************
-int polyFit::maini(int argc, char *argv[]) {
+int polyFit::maini() {
 
     cout << "Polynomial fit!" << endl;
 
@@ -727,7 +727,7 @@ int polyFit::maini(int argc, char *argv[]) {
     double fixedinterval = 0.;                       // The fixed intercept value (if applicable)
     double alphaval = 0.05;                          // Critical apha value
 
-    double x[] = {97, 97, 98, 98, 99, 99, 100, 100, 101, 101};
+    double x[] = {-1, 0, 0, 1, 1, 2, 2, 2, 3, 3};
     double y[] = {39, 40, 40, 41, 41, 42, 42, 43, 44, 45};
     double erry[] = {0,0,0,0,0,0,0,0,0,0};       // Data points (err on y) (if applicable)
 
@@ -832,16 +832,14 @@ int polyFit::maini(int argc, char *argv[]) {
     // **************************************************************
     DisplayCovCorrMatrix(k, SE, fixedinter, XTWXInv);
 
+    qDebug()<<"A1 ist:" <<coefbeta[1];
+    qDebug()<<"A0 ist:" <<coefbeta[0];
 
 
 }
 
-double polyFit::getSlope(QVector<double> xVec, QVector<double> yVec, double **Weights)
+QVector<double> polyFit::getSlope(QVector<double> xVec, QVector<double> yVec, double **Weights)
 {
-//    cout << "Polynomial fit!" << endl;
-//    qDebug()<<"Übergebene xValues: "<<xVec;
-
-    // Input values
     // **************************************************************
     size_t k = 2;                                    // Polynomial order
     bool fixedinter = false;                         // Fixed the intercept (coefficient A0)
@@ -862,8 +860,6 @@ double polyFit::getSlope(QVector<double> xVec, QVector<double> yVec, double **We
 
 
     double **XTWXInv;                                // Matrix XTWX Inverse [k+1,k+1]
-    //double **Weights;                                // Matrix Weights [n,n]
-
 
     // Initialize values
     // **************************************************************
@@ -871,19 +867,11 @@ double polyFit::getSlope(QVector<double> xVec, QVector<double> yVec, double **We
     nstar = n-1;
     if (fixedinter) nstar = n;
 
-    qDebug() << "Number of points: " << n;
-//    cout << "Polynomial order: " << k << endl;
-//    if (fixedinter) {
-//        cout << "A0 is fixed!" << endl;
-//    } else {
-//        cout << "A0 is adjustable!" << endl;
-//    }
-
     if (k>nstar) {
         cout << "The polynomial order is too high. Max should be " << n << " for adjustable A0 ";
         cout << "and " << n-1 << " for fixed A0. ";
         cout << "Program stopped" << endl;
-        return -100;
+        return {-100,-100};
     }
 
     if (k==nstar) {
@@ -892,43 +880,281 @@ double polyFit::getSlope(QVector<double> xVec, QVector<double> yVec, double **We
     }
 
     XTWXInv = Make2DArray(k+1,k+1);
-    //Weights = Make2DArray(n,n);
-
-
-
-//    if (determinant(Weights,n)==0.) {
-//        cout << "One or more points have 0 error. Review the errors on points or use no weighting. ";
-//        cout << "Program stopped" << endl;
-//        return -1;
-//    }
 
     // Calculate the coefficients of the fit
     // **************************************************************
     PolyFit(x,y,n,k,fixedinter,fixedinterval,coefbeta,Weights,XTWXInv);
 
+    return {coefbeta[1],coefbeta[0]};
+}
 
-    // Calculate related values
+void polyFit::cofactorQt(QVector<QVector<double> > &num, QVector<QVector<double> > &inverse, const size_t f)
+{
+    QVector<QVector<double> > b = makeQtMat(f,f);
+    QVector<QVector<double> > fac = makeQtMat(f,f);
+
+    size_t m;
+    size_t n;
+
+    for (size_t q=0; q<f; q++) {
+
+        for (size_t p=0; p<f; p++) {
+
+            m = 0;
+            n = 0;
+
+            for (size_t i=0; i<f; i++) {
+
+                for (size_t j=0; j<f; j++) {
+
+                    if (i != q && j != p) {
+
+                        b[m][n] = num[i][j];
+
+                        if (n < (f - 2)) {
+                            n++;
+                        }
+                        else
+                        {
+                            n = 0;
+                            m++;
+                        }
+                    }
+                }
+            }
+            fac[q][p] = pow(-1, q + p) * determinantQt(b, f - 1);
+        }
+    }
+
+    transposeQt(num, fac, inverse, f);
+
+}
+
+void polyFit::MatVectMulQt(const size_t m1, const size_t m2, QVector<QVector<double> > &A, QVector<double> &v, QVector<double> &Av)
+{
+
+    for (size_t i=0; i<m1; i++) {
+        Av[i]=0.;
+        for (size_t j=0; j<m2; j++) {
+            Av[i]+=A[i][j]*v[j];
+        }
+    }
+}
+
+void polyFit::transposeQt(QVector<QVector<double> > &num, QVector<QVector<double> > &fac, QVector<QVector<double> > &inverse, const size_t r)
+{
+    QVector<QVector<double> > b = makeQtMat(r,r);
+    double deter;
+
+    for (size_t i=0; i<r; i++) {
+        for (size_t j=0; j<r; j++) {
+            b[i][j] = fac[j][i];
+        }
+    }
+
+    deter = determinantQt(num, r);
+
+    for (size_t i=0; i<r; i++) {
+        for (size_t j=0; j<r; j++) {
+            inverse[i][j] = b[i][j] / deter;
+        }
+    }
+}
+
+double polyFit::determinantQt(QVector<QVector<double> > a, const size_t k)
+{
+    double s = 1;
+    double det = 0.;
+    QVector<QVector<double> > b = makeQtMat(k,k);
+    size_t m;
+    size_t n;
+
+    if (k == 1) return (a[0][0]);
+
+    for (size_t c=0; c<k; c++) {
+
+        m = 0;
+        n = 0;
+
+        for (size_t i = 0; i < k; i++) {
+
+            for (size_t j = 0; j < k; j++) {
+
+                b[i][j] = 0;
+
+                if (i != 0 && j != c) {
+
+                    b[m][n] = a[i][j];
+                    if (n < (k - 2)) {
+                        n++;
+                    }
+                    else
+                    {
+                        n = 0;
+                        m++;
+                    }
+                }
+            }
+        }
+
+        det = det + s * (a[0][c] * determinantQt(b, k - 1));
+        s = -1 * s;
+
+    }
+
+    return (det);
+}
+
+
+QVector<QVector<double> > polyFit::MatMulQt(const size_t m1, const size_t m2, const size_t m3, QVector<QVector<double> > A, QVector<QVector<double> > B)
+{
+    QVector<QVector<double> > array = makeQtMat(m1,m3);
+
+    for (size_t i=0; i<m1; i++) {
+        for (size_t j=0; j<m3; j++) {
+            array[i][j]=0.;
+            for (size_t m=0; m<m2; m++) {
+                array[i][j]+=A[i][m]*B[m][j];
+            }
+        }
+    }
+    return array;
+}
+
+
+QVector<QVector<double> > polyFit::MatTransQt(QVector<QVector<double> > array, int rows, int cols)
+{
+    QVector<QVector<double> > arrayT = makeQtMat(cols,rows);
+
+    for(size_t i = 0; i < rows; i++) {
+        for(size_t j = 0; j < cols; j++) {
+            arrayT[j][i] = array[i][j];
+        }
+    }
+
+    return arrayT;
+}
+
+void polyFit::polyFitQt(QVector<double> &x, QVector<double> &y, int n, int k, QVector<double> &beta, QVector<QVector<double> > &Weights, QVector<QVector<double> > &XTWXInv)
+{
+    // Definition of variables
     // **************************************************************
-    //double RSS = CalculateRSS(x,y,coefbeta,Weights,std::fixed,n,k+1);
+    QVector<QVector<double> > X = makeQtMat(n,k+1);           // [n,k+1]
+    QVector<QVector<double> > XT;                               // [k+1,n]
+    QVector<QVector<double> > XTW;                              // [k+1,n]
+    QVector<QVector<double> > XTWX;                             // [k+1,k+1]
 
-//    if ((nstar-k)>0) {
-//        SE = sqrt(RSS/(nstar-k));
-//        tstudentval = fabs(CalculateTValueStudent(nstar-k, 1.-0.5*alphaval));
-//    }
-//    cout << "t-student value: " << tstudentval << endl << endl;
+    QVector<double> XTWY = QVector<double>(k+1);
+    QVector<double> Y = y;
 
-    // Calculate the standard errors on the coefficients
+    size_t begin = 0;
+
+
+    // Initialize X
     // **************************************************************
-    //CalculateSERRBeta(fixedinter,SE,k,serbeta,XTWXInv);
+    for (size_t i=0; i<n; i++) {
+        for (size_t j=begin; j<(k+1); j++) {  // begin
+          X[i][j]=pow(x[i],j);
+        }
+    }
 
-    // Display polynomial
+    // Matrix calculations
     // **************************************************************
-    //DisplayPolynomial(k);
+    XT = MatTransQt(X, n, k+1);                 // Calculate XT
+    XTW = MatMulQt(k+1,n,n,XT,Weights);         // Calculate XT*W
+    XTWX = MatMulQt(k+1,n,k+1,XTW,X);           // Calculate (XTW)*X
 
-    // Display polynomial coefficients
+    cofactorQt(XTWX, XTWXInv, k+1);             // Calculate (XTWX)^-1
+
+    MatVectMulQt(k+1,n,XTW,Y,XTWY);             // Calculate (XTW)*Y
+
+    MatVectMulQt(k+1,k+1,XTWXInv,XTWY,beta);    // Calculate beta = (XTWXInv)*XTWY
+
+}
+
+QVector<QVector<double> > polyFit::makeQtMat(int rows, int cols)
+{
+    QVector<QVector<double>> matReturn = QVector<QVector<double>>(rows);
+    for(int i = 0;i<rows;i++){
+        matReturn[i]=QVector<double>(cols);
+    }
+    return matReturn;
+}
+
+QVector<double> polyFit::getSlopeStatic(QVector<double> xVec, QVector<double> yVec, double **Weights)
+{
+    size_t k = 2;                                    // Polynomial order
+    bool fixedinter = false;                         // Fixed the intercept (coefficient A0)
+    double fixedinterval = 0.;                       // The fixed intercept value (if applicable)
+
+    double* x = new double[xVec.size()]{0};
+    double* y = new double[yVec.size()]{0};
+    for(int i = 0; i<xVec.size(); i++){
+        x[i] = xVec[i];
+        y[i] = yVec[i];
+    }
+
+    // Definition of other variables
     // **************************************************************
-    //DisplayCoefs(k, nstar, tstudentval, coefbeta, serbeta);
+    size_t n = 0;                                    // Number of data points (adjusted later)
+    size_t nstar = 0;                                // equal to n (fixed intercept) or (n-1) not fixed
+    double coefbeta[3]={0,0,0};                            // Coefficients of the polynomial
 
-    return coefbeta[1];
+
+    double **XTWXInv;                                // Matrix XTWX Inverse [k+1,k+1]
+
+
+    // Initialize values
+    // **************************************************************
+    n = xVec.size();
+    nstar = n-1;
+    if (fixedinter) nstar = n;
+
+    if (k>nstar) {
+        cout << "The polynomial order is too high. Max should be " << n << " for adjustable A0 ";
+        cout << "and " << n-1 << " for fixed A0. ";
+        cout << "Program stopped" << endl;
+        return {-100,-100};
+    }
+
+    if (k==nstar) {
+        cout << "The degree of freedom is equal to the number of points. ";
+        cout << "The fit will be exact." << endl;
+    }
+
+    XTWXInv = Make2DArray(k+1,k+1);
+
+    // **************************************************************
+    PolyFit(x,y,n,k,fixedinter,fixedinterval,coefbeta,Weights,XTWXInv);
+
+    return {coefbeta[1],coefbeta[0]};
+}
+
+QVector<double> polyFit::getSlopeStaticQt(QVector<double> xVec, QVector<double> yVec, QVector<QVector<double> > Weights)
+{
+    //alles mit fixed Inter kann ich ignorieren!!
+    size_t k = 2;                                           //Poly-order
+    size_t n = xVec.size();                                    // Number of data points (adjusted later)
+    size_t nstar = n - 1;                                // equal to n (fixed intercept) or (n-1) not fixed
+    QVector<double> coefbeta=QVector<double>(k+1);                            // Coefficients of the polynomial
+
+
+    if (k>nstar) {
+        qDebug() << "The polynomial order is too high. Max should be " << n << " for adjustable A0 ";
+        qDebug() << "and " << n-1 << " for fixed A0. ";
+        qDebug() << "Program stopped" << endl;
+        return {-100,-100};
+    }
+
+    if (k==nstar) {
+        qDebug() << "The degree of freedom is equal to the number of points. ";
+        qDebug() << "The fit will be exact." << endl;
+    }
+
+    QVector<QVector<double>> XTWXInv = makeQtMat(k+1,k+1);
+
+    polyFitQt(xVec,yVec,n,k,coefbeta,Weights,XTWXInv);
+
+    return {coefbeta[1],coefbeta[0]};
 }
 

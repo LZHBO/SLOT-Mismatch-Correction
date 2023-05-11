@@ -60,6 +60,14 @@ class surface_fitting_test : public QWidget
          * Steigung der Oberfläche am Eintrittspunkt
          */
         double slopeEntry = 0;
+        /**
+          * Y-Koordinate am Austrittspunkt aus der Probe
+          */
+        double yExit = 0;
+        /**
+          * X-Koordinate am Austrittspunkt aus der Probe
+          */
+        double xExit = 0;
     };
 
     struct newSurfaceInfo{
@@ -76,6 +84,7 @@ public:
     static double riSampleMT;
     static int slopeSigmaMT;
     static int slopePxlNoMT;
+    static bool usePoly;
 
 private slots:
     void on_pushButton_loadAndDisplay_clicked();
@@ -167,9 +176,9 @@ private:
     QImage bScan;
     bool createTransmission = 0;
     bool accountForReflection = 0;
-    bool useArrayFire = 0;
-    bool useMultiThreading = 0;
-    bool usePolyFit = 0;
+    bool useArrayFire = 1;
+    bool useMultiThreading = 1;
+    bool usePolyFit = 1;
     bool correctingPmtSinogram = true;
     signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
@@ -194,7 +203,6 @@ private:
     QString nrOfProjString;
     void displayImageLeft(QImage image);
     double getArithmicMiddle(QVector<int> vec, int base, int integral);
-    //double getArithmicMiddleAF(QVector<int> vec, int base, int integral);
     QVector<int> fillVectorWithAscan(QImage image, int X);
     int getColor(QImage image, int x, int y);
     QImage setPixelColor8Bit(QImage image, int x, int y, int value, int bytesPerLine);
@@ -238,13 +246,21 @@ private:
     void learningAF(int size);
     QVector<surfaceInfo> makeStructVector(QVector<QImage> imageList, QVector<QVector<QVector<double>>> pointList);
     QVector<newSurfaceInfo> makeNewStructVector(QVector<QImage> imageListThinnedSurface, QVector<QImage> imageListRotSurface, QVector<QVector<entryPoint>> pointList);
-    static int propagateRayMultiThreaded(surfaceInfo &surfaceList);
     static int newPropagateRayMultiThreaded(newSurfaceInfo &surfaceList);
 
-    double getPolySlopeAtEntry(QImage &surface, QVector<entryPoint> &ePoints, int X);
+    QVector<double> getPolySlopeAtEntry(QImage &surface, int X);
+    QVector<double> getPolySlopeAtEntryQt(QImage &surface, int X);
+
+    QVector<double> getPolySlopeAtExit(QImage &surface, int X);
+    QVector<double> getPolySlopeAtExitQt(QImage &surface, int X);
+
+
+    static QVector<double> getPolySlopeAtEntryStatic(QImage &surface, int X);
     static int getFirstValueFromTopStatic(QImage &image, int X);
     static int getFirstValueFromBottomStatic(QImage image, int X);
     static int getColorStatic(QImage &image, int x, int y);
+    static QVector<int> fillVectorWithAscanStatic(QImage image, int X);
+    static double getArithmicMiddleStatic(QVector<int> vec, int base, int integral);
     static QVector<double> getSlopeAtEntryStatic(QImage image, int X, int sigma);
     static double getExitAngleStatic(double slope, double n1, double n2);
     static QVector<double> parameterizeFromPointsStatic(double x1, double y1, double x2, double y2);
@@ -254,7 +270,7 @@ private:
      * input in mm, output ist die relative verschiebung
      */
     double calculateCameraPoint(double mediumRI, double yExit, double xExit, double angleExit);
-    QVector<double> getBackExitPointAndAngle(QImage thinSurface, int xEntry, double mediaRI, double samplRi);
+    QVector<double> getBackExitPointAndAngle(QImage surface, int xEntry, double mediaRI, double samplRi);
     QVector<double> generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI);
     void determineTeleError(QVector<QVector<double>> moments);
     QVector<QVector<double>> makeListRelativeAndScaled(QVector<QVector<double>> moments);

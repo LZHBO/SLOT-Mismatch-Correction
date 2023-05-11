@@ -25,8 +25,28 @@ class polyFit : public QObject
     Q_OBJECT
 public:
     explicit polyFit(QObject *parent = nullptr);
-    int maini(int argc, char *argv[]);
-    double getSlope(QVector<double> xVec, QVector<double> yVec, double **Weights);
+    int maini();
+    QVector<double> getSlope(QVector<double> xVec, QVector<double> yVec, double **Weights);
+
+    static void cofactorQt(QVector<QVector<double>> &num, QVector<QVector<double>> &inverse, const size_t f);
+
+    static void MatVectMulQt(const size_t m1, const size_t m2, QVector<QVector<double>> &A, QVector<double> &v, QVector<double> &Av);
+
+    static void transposeQt(QVector<QVector<double>> &num, QVector<QVector<double>> &fac, QVector<QVector<double>> &inverse, const size_t r);
+
+    static double determinantQt(QVector<QVector<double>> a, const size_t k);
+
+    static QVector<QVector<double>> MatMulQt(const size_t m1, const size_t m2, const size_t m3, QVector<QVector<double>> A, QVector<QVector<double>> B);
+
+    static QVector<QVector<double>> MatTransQt(QVector<QVector<double>> array, int rows, int cols);
+
+    static void polyFitQt(QVector<double> &x,QVector<double> &y,int n,int k,QVector<double> &beta, QVector<QVector<double>> &Weights,QVector<QVector<double>> &XTWXInv);
+
+    static QVector<QVector<double>> makeQtMat(int rows, int cols);
+
+    static QVector<double> getSlopeStatic(QVector<double> xVec, QVector<double> yVec, double **Weights);
+
+    static QVector<double> getSlopeStaticQt(QVector<double> xVec, QVector<double> yVec, QVector<QVector<double>> Weights);
 
 signals:
 

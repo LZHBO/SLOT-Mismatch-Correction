@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\surfacePlant</string>
+    <string>C:\Users\o.hill\Pictures\SLP\SheppLogan_Phantom_surface</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -122,8 +122,11 @@
    <property name="minimum">
     <number>1</number>
    </property>
+   <property name="singleStep">
+    <number>1</number>
+   </property>
    <property name="value">
-    <number>7</number>
+    <number>15</number>
    </property>
   </widget>
   <widget class="QLabel" name="label_2">
@@ -171,7 +174,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.330000000000000</double>
+    <double>1.422000000000000</double>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_riSample">
@@ -290,7 +293,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\internPlant</string>
+    <string>C:\Users\o.hill\Pictures\SLP\SheppLogan_Phantom</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">
@@ -406,7 +409,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.500000000000000</double>
+    <double>1.920000000000000</double>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_newCorrection">
@@ -487,7 +490,7 @@
     <string>Also create Transmission?</string>
    </property>
    <property name="checked">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
   </widget>
   <widget class="QCheckBox" name="checkBox_accountForReflection">
@@ -583,6 +586,9 @@
    </property>
    <property name="text">
     <string>Use ArrayFire</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
    </property>
   </widget>
   <widget class="Line" name="line_3">
@@ -743,6 +749,9 @@
    <property name="text">
     <string>Use Multithreading</string>
    </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
   </widget>
   <widget class="QRadioButton" name="radioButton_pmt">
    <property name="geometry">
@@ -813,6 +822,9 @@
    </property>
    <property name="text">
     <string>Use PolyFit</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
    </property>
   </widget>
  </widget>

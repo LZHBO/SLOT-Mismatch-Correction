@@ -5,12 +5,19 @@ double surface_fitting_test::riMediumMT = 1;
 double surface_fitting_test::riSampleMT = 1;
 int surface_fitting_test::slopeSigmaMT = 1;
 int surface_fitting_test::slopePxlNoMT = 1;
+bool surface_fitting_test::usePoly = 1;
 
 surface_fitting_test::surface_fitting_test(QWidget *parent) :
     QWidget(parent),
     ui(new Ui::surface_fitting_test)
 {
     ui->setupUi(this);
+    riMediumMT = ui->doubleSpinBox_riMedium->value();
+    riMedium = riMediumMT;
+    riSampleMT = ui->doubleSpinBox_riSample->value();
+    riSample = riSampleMT;
+    slopeSigmaMT = ui->spinBox_slopeSigma->value();
+    slopePxlNoMT = ui->spinBox_ariMiddleSigma->value();
 }
 
 surface_fitting_test::~surface_fitting_test()
@@ -26,13 +33,13 @@ void surface_fitting_test::on_pushButton_loadAndDisplay_clicked()
     inputPathSurface.replace("\\","/",Qt::CaseSensitivity());
     if(inputSurface.load(inputPathSurface)==0){
         qDebug()<<"Failed to load input surface, check path";
-    };
+    }
     inputSurface.convertTo(QImage::Format_Grayscale8,Qt::AutoColor);
     inputPathHisto = ui->lineEdit_inputHisto->text();
     inputPathHisto.replace("\\","/",Qt::CaseSensitivity());
     if(inputHisto.load(inputPathHisto)==0){
         qDebug()<<"Failed to load input histogram, check path";
-    };
+    }
     inputHisto.convertTo(QImage::Format_Grayscale8,Qt::AutoColor);
     bufferImg = QImage(inputSurface.size(),QImage::Format_Grayscale8);
     bufferImg = thinOutSurface(inputSurface);
@@ -49,14 +56,14 @@ void surface_fitting_test::on_pushButton_loadAndDisplaySinogram_clicked()
     inputPathSurface.replace("\\","/",Qt::CaseSensitivity());
     if(inputSurface.load(inputPathSurface)==0){
         qDebug()<<"Failed to load input surface, check path";
-    };
+    }
     inputSurface.convertTo(QImage::Format_Grayscale8,Qt::AutoColor);
     inputPathSinogram = ui->lineEdit_inputSinogram->text();
     inputPathSinogram.replace("\\","/",Qt::CaseSensitivity());
     if(inputSinogram.load(inputPathSinogram)==0){
         qDebug()<<"Failed to load input sinogram, check path";
-    };
-    //inputHisto.convertTo(QImage::Format_Grayscale8,Qt::AutoColor);
+    }
+    inputHisto.convertTo(QImage::Format_Grayscale8,Qt::AutoColor);
     auto sinogramFormat = inputSinogram.pixelFormat();
     qDebug()<<"Sinogram Bits per Pixel:"<<sinogramFormat.bitsPerPixel();
     qDebug()<<"Sinogram Color Model (3 is grayscale)"<<sinogramFormat.colorModel();
@@ -356,7 +363,6 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
         qDebug()<<"Struct wird erstellt"<<externalCorrectionTimer.restart();
         newSurfaceList = makeNewStructVector(rotatedSurfacesThinnedOut,rotatedSurfaces,newRotatedEntryPoints);
         qDebug()<<"Struct wurde erstellt"<<externalCorrectionTimer.restart();
-        QtConcurrent::blockingMap(surfaceList,&surface_fitting_test::propagateRayMultiThreaded);
         QtConcurrent::blockingMap(newSurfaceList,&surface_fitting_test::newPropagateRayMultiThreaded);
         qDebug()<<"Strahlen wurden MT propagiert"<<externalCorrectionTimer.restart();
         for(int k=0; k<newSurfaceList.size();k++){
@@ -437,7 +443,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                             QVector<double> surfaceVector = parameterizeFromPoints(X-1, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X-1), X, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X));
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                            if(intersection[0]>=X&&intersection[0]<X+1){
+                            if(intersection[0]>=X-1&&intersection[0]<X){
                                 newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
                                 //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                                 success = true;
@@ -571,9 +577,6 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
     newRotatedEntryPoints.resize(0);
     rotatedSurfacesThinnedOut.resize(0);
     rotatedSurfaces.resize(0);
-    //rearrangedSinogramFails.save(inputPathSinogram+"\\"+nameRI2+nrOfProjString2+"_sinogramRearrangedFailsFromExternal.png");
-    //rearrangedExternalSinogram.save(inputPathSinogram+"\\"+nameRI2+nrOfProjString2+"_sinogramRearrangedFromExternal.png"); Umstellung von save auf return!
-    //rearrangedSinogramFails.fill(0);
     qDebug()<<"Sinogram fertig sortiert!"<<externalCorrectionTimer.elapsed();
     return rearrangedExternalSinogram;
 }
@@ -586,8 +589,8 @@ void surface_fitting_test::drawAndDisplaySlope(QImage image, int X, int Y, doubl
         drawn.setPixelColor(x,y,Qt::green);
     }
     double gamma = getExitAngle(slope,riMedium,riSample);
-    qDebug()<<gamma;
-    for(int y = 0;y<image.height()/2;y++){
+    qDebug()<<"Gamma beträgt: "<<gamma;
+    for(int y = 0;y<image.height()/10;y++){
         drawn.setPixelColor(X+std::round(y*qTan(gamma)),y+Y,Qt::red);
     }
     displayImageLeft(drawn);
@@ -924,238 +927,125 @@ QVector<surface_fitting_test::newSurfaceInfo> surface_fitting_test::makeNewStruc
 }
 
 
-int surface_fitting_test::propagateRayMultiThreaded(surfaceInfo &surfaceList)
-{
-    surfaceList.entryPoints[0]={0,0,0,0}; //Nullpointer :(
-    for(int x = 1;x<surfaceList.thinnedOut.width();x++){
-        surfaceList.entryPoints[x]={0,0};
-           if(getFirstValueFromTopStatic(surfaceList.thinnedOut,x-1)!=0 && getFirstValueFromTopStatic(surfaceList.thinnedOut,x)!=0 && getFirstValueFromTopStatic(surfaceList.thinnedOut,x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
-               QVector<double>bufVec = getSlopeAtEntryStatic(surfaceList.thinnedOut,x,slopeSigmaMT);
-               double exitAngle = getExitAngleStatic(bufVec[1],riMediumMT,riSampleMT);
-               surfaceList.entryPoints[x] = {bufVec[0],exitAngle};
-               surfaceList.entryPoints[x].append(0);
-               if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
-                   int X=x;
-                   bool success = false;
-                   while(success == false && getFirstValueFromBottomStatic(surfaceList.thinnedOut,X+1)>0){
-                       QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X), X+1, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X+1));
-                       QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                       QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                       if(intersection[0]>=X&&intersection[0]<X+1){
-                           surfaceList.entryPoints[x][2] = intersection[2];
-                           success = true;
-                       }else{
-                           X++;
-                       }
-                   }
-                   if(success == false){
-                       //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<k<<x;
-                       if(getFirstValueFromTopStatic(surfaceList.thinnedOut,X)!=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
-                           QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X), X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X));
-                           QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                           QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                           if(intersection[1]>=getFirstValueFromTopStatic(surfaceList.thinnedOut,X)&&intersection[1]<=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
-                               //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                               surfaceList.entryPoints[x][2] = intersection[2];
-                               success = true;
-                           }
-                       }
-                       while(success == false && X>=x){
-                           QVector<double> surfaceVector = parameterizeFromPointsStatic(X-1, getFirstValueFromTopStatic(surfaceList.thinnedOut,X-1), X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X));
-                           QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                           QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                           if(intersection[0]>=X&&intersection[0]<X+1){
-                               surfaceList.entryPoints[x][2] = intersection[2];
-                               //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
-                               success = true;
-                           }else{
-                               X--;
-                           }
-                       }
-                   }
-               }else if(exitAngle<0&&exitAngle>-1.0){  //Strahl wird nach links abgelenkt
-                   int X=x;
-                   bool success = false;
-                   while(success == false && getFirstValueFromBottomStatic(surfaceList.thinnedOut,X-1) > 0){
-                       QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X), X-1, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X-1));
-                       QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                       QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                       if(intersection[0]<=X&&intersection[0]>X-1){
-                           surfaceList.entryPoints[x][2] = intersection[2];
-                           success = true;
-                       }else{
-                           X--;
-                       }
-                   }
-                   if(success == false){
-                       //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<k<<x;
-                       if(getFirstValueFromTopStatic(surfaceList.thinnedOut,X)!=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
-                           QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X), X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X));
-                           QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                           QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                           if(intersection[1]>=getFirstValueFromTopStatic(surfaceList.thinnedOut,X)&&intersection[1]<=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
-                               //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                               surfaceList.entryPoints[x][2] = intersection[2];
-                               success = true;
-                           }
-                       }
-                       while(success == false && X<=x){
-                           QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X), X+1, getFirstValueFromTopStatic(surfaceList.thinnedOut,X+1));
-                           QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                           QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                           if(intersection[0]>=X&&intersection[0]<X+1){
-                               surfaceList.entryPoints[x][2] = intersection[2];
-                               //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
-                               success = true;
-                           }else{
-                               X++;
-                           }
-                       }
-                   }
-               }else{
-                   //qDebug()<<"Strahl wurde total reflektiert!"<<k<<x;
-               }
-
-               surfaceList.entryPoints[x].append(bufVec[1]);
-               // Wert in ein Sinogram malen
-               if(surfaceList.entryPoints[x][2]<0){
-                   surfaceList.entryPoints[x][2]=0;
-                   qDebug()<<"irgendwas schiefgelaufen beim rayPropagate";
-               }
-
-           }else{
-               surfaceList.entryPoints[x] = {0,0,0,0};
-           }
-       }
-    return 1;
-}
-
 int surface_fitting_test::newPropagateRayMultiThreaded(newSurfaceInfo &surfaceList)
 {
-    surfaceList.ePoints[0]={0,0,0,0,0}; //Nullpointer :(
+    surfaceList.ePoints[0]={0,0,0,0,0};
     for(int x = 1;x<surfaceList.thinnedOut.width();x++){
-        //surfaceList.entryPoints[x]={0,0};
-           if(getFirstValueFromTopStatic(surfaceList.thinnedOut,x-1)!=0 && getFirstValueFromTopStatic(surfaceList.thinnedOut,x)!=0 && getFirstValueFromTopStatic(surfaceList.thinnedOut,x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
-               QVector<double>bufVec = getSlopeAtEntryStatic(surfaceList.thinnedOut,x,slopeSigmaMT);
-               double exitAngle = getExitAngleStatic(bufVec[1],riMediumMT,riSampleMT);
-               surfaceList.ePoints[x].gammaEntry = exitAngle;
-               surfaceList.ePoints[x].yEntry = bufVec[0];
-               surfaceList.ePoints[x].slopeEntry = bufVec[1];
-               surfaceList.ePoints[x].lengthEntry = 0;
-               surfaceList.ePoints[x].xEntry = x;
-               //hier könnte der neue PolyFit eingefügt werden!!
-               if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
-                   int X=x;
-                   bool success = false;
-                   while(success == false && getFirstValueFromBottomStatic(surfaceList.thinnedOut,X+1)>0){
-                       QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X), X+1, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X+1));
-                       QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                       QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                       if(intersection[0]>=X&&intersection[0]<X+1){
-                           surfaceList.ePoints[x].lengthEntry = intersection[2];
-                           success = true;
-                       }else{
-                           X++;
-                       }
-                   }
-                   if(success == false){
-                       //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<k<<x;
-                       if(getFirstValueFromTopStatic(surfaceList.thinnedOut,X)!=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
-                           QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X), X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X));
-                           QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                           QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                           if(intersection[1]>=getFirstValueFromTopStatic(surfaceList.thinnedOut,X)&&intersection[1]<=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
-                               //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                               surfaceList.ePoints[x].lengthEntry = intersection[2];
-                               success = true;
-                           }
-                       }
-                       while(success == false && X>=x){
-                           QVector<double> surfaceVector = parameterizeFromPointsStatic(X-1, getFirstValueFromTopStatic(surfaceList.thinnedOut,X-1), X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X));
-                           QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                           QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                           if(intersection[0]>=X&&intersection[0]<X+1){
-                               surfaceList.ePoints[x].lengthEntry = intersection[2];
-                               //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
-                               success = true;
-                           }else{
-                               X--;
-                           }
-                       }
-                   }
-               }else if(exitAngle<0&&exitAngle>-1.0){  //Strahl wird nach links abgelenkt
-                   int X=x;
-                   bool success = false;
-                   while(success == false && getFirstValueFromBottomStatic(surfaceList.thinnedOut,X-1) > 0){
-                       QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X), X-1, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X-1));
-                       QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                       QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                       if(intersection[0]<=X&&intersection[0]>X-1){
-                           surfaceList.ePoints[x].lengthEntry = intersection[2];
-                           success = true;
-                       }else{
-                           X--;
-                       }
-                   }
-                   if(success == false){
-                       //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<k<<x;
-                       if(getFirstValueFromTopStatic(surfaceList.thinnedOut,X)!=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
-                           QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X), X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X));
-                           QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                           QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                           if(intersection[1]>=getFirstValueFromTopStatic(surfaceList.thinnedOut,X)&&intersection[1]<=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
-                               //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
-                               surfaceList.ePoints[x].lengthEntry = intersection[2];
-                               success = true;
-                           }
-                       }
-                       while(success == false && X<=x){
-                           QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X), X+1, getFirstValueFromTopStatic(surfaceList.thinnedOut,X+1));
-                           QVector<double> rayVector = parameterizeFromAngleStatic(x,bufVec[0],exitAngle);
-                           QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
-                           if(intersection[0]>=X&&intersection[0]<X+1){
-                               surfaceList.ePoints[x].lengthEntry = intersection[2];
-                               //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
-                               success = true;
-                           }else{
-                               X++;
-                           }
-                       }
-                   }
-               }else{
-                   //qDebug()<<"Strahl wurde total reflektiert!"<<k<<x;
-               }
+        if(getFirstValueFromTopStatic(surfaceList.thinnedOut,x-1)!=0 && getFirstValueFromTopStatic(surfaceList.thinnedOut,x)!=0 && getFirstValueFromTopStatic(surfaceList.thinnedOut,x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
+            surfaceList.ePoints[x].xEntry = x;
+            if(usePoly){
+                surfaceList.ePoints[x].slopeEntry = getPolySlopeAtEntryStatic(surfaceList.rotSurface,x)[0];
+                surfaceList.ePoints[x].yEntry = getPolySlopeAtEntryStatic(surfaceList.rotSurface,x)[1];
+                surfaceList.ePoints[x].gammaEntry = getExitAngleStatic(surfaceList.ePoints[x].slopeEntry,riMediumMT,riSampleMT);
+            }else{
+                QVector<double>bufVec = getSlopeAtEntryStatic(surfaceList.thinnedOut,x,slopeSigmaMT);
+                double exitAngle = getExitAngleStatic(bufVec[1],riMediumMT,riSampleMT);
+                surfaceList.ePoints[x].gammaEntry = exitAngle;
+                surfaceList.ePoints[x].yEntry = bufVec[0];
+                surfaceList.ePoints[x].slopeEntry = bufVec[1];
+            }
+            QVector<double> rayVector = parameterizeFromAngleStatic(x,surfaceList.ePoints[x].yEntry,surfaceList.ePoints[x].gammaEntry);
+            surfaceList.ePoints[x].lengthEntry = 0;
+            if(surfaceList.ePoints[x].gammaEntry>=0&&surfaceList.ePoints[x].gammaEntry<1.0){  //Strahl wird nach rechts abgelenkt
+                int X=x;
+                bool success = false;
+                while(success == false && getFirstValueFromBottomStatic(surfaceList.thinnedOut,X+1)>0){
+                    QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X), X+1, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X+1));
+                    QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                    if(intersection[0]>=X&&intersection[0]<X+1){
+                        surfaceList.ePoints[x].lengthEntry = intersection[2];
+                        success = true;
+                    }else{
+                        X++;
+                    }
+                }
+                if(success == false){
+                    //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<k<<x;
+                    if(getFirstValueFromTopStatic(surfaceList.thinnedOut,X)!=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
+                        QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X), X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X));
+                        QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                        if(intersection[1]>=getFirstValueFromTopStatic(surfaceList.thinnedOut,X)&&intersection[1]<=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
+                            //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                            surfaceList.ePoints[x].lengthEntry = intersection[2];
+                            success = true;
+                        }
+                    }
+                    while(success == false && X>=x){
+                        QVector<double> surfaceVector = parameterizeFromPointsStatic(X-1, getFirstValueFromTopStatic(surfaceList.thinnedOut,X-1), X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X));
+                        QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                        if(intersection[0]>=X-1&&intersection[0]<X){
+                            surfaceList.ePoints[x].lengthEntry = intersection[2];
+                            //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                            success = true;
+                        }else{
+                            X--;
+                        }
+                    }
+                }
+            }else if(surfaceList.ePoints[x].gammaEntry<0&&surfaceList.ePoints[x].gammaEntry>-1.0){  //Strahl wird nach links abgelenkt
+                int X=x;
+                bool success = false;
+                while(success == false && getFirstValueFromBottomStatic(surfaceList.thinnedOut,X-1) > 0){
+                    QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X), X-1, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X-1));
+                    QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                    if(intersection[0]<=X&&intersection[0]>X-1){
+                        surfaceList.ePoints[x].lengthEntry = intersection[2];
+                        success = true;
+                    }else{
+                        X--;
+                    }
+                }
+                if(success == false){
+                    //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<k<<x;
+                    if(getFirstValueFromTopStatic(surfaceList.thinnedOut,X)!=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
+                        QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X), X, getFirstValueFromBottomStatic(surfaceList.thinnedOut,X));
+                        QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                        if(intersection[1]>=getFirstValueFromTopStatic(surfaceList.thinnedOut,X)&&intersection[1]<=getFirstValueFromBottomStatic(surfaceList.thinnedOut,X)){
+                            //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                            surfaceList.ePoints[x].lengthEntry = intersection[2];
+                            success = true;
+                        }
+                    }
+                    while(success == false && X<=x){
+                        QVector<double> surfaceVector = parameterizeFromPointsStatic(X, getFirstValueFromTopStatic(surfaceList.thinnedOut,X), X+1, getFirstValueFromTopStatic(surfaceList.thinnedOut,X+1));
+                        QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                        if(intersection[0]>=X&&intersection[0]<X+1){
+                            surfaceList.ePoints[x].lengthEntry = intersection[2];
+                            //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                            success = true;
+                        }else{
+                            X++;
+                        }
+                    }
+                }
+            }else{
+                //qDebug()<<"Strahl wurde total reflektiert!"<<k<<x;
+            }
 
-               if(surfaceList.ePoints[x].lengthEntry<0){
-                   surfaceList.ePoints[x].lengthEntry=0;
-                   qDebug()<<"irgendwas schiefgelaufen beim rayPropagate";
-               }
+            if(surfaceList.ePoints[x].lengthEntry<0){
+                surfaceList.ePoints[x].lengthEntry=0;
+                qDebug()<<"irgendwas schiefgelaufen beim rayPropagate";
+            }
 
-           }else{
-               surfaceList.ePoints[x] = {0,0,0,0,0};
-               surfaceList.ePoints[x].xEntry = x;
-           }
-       }
+        }else{
+            surfaceList.ePoints[x] = {0,0,0,0,0};
+            surfaceList.ePoints[x].xEntry = x;
+        }
+    }
     return 1;
 }
 
-double surface_fitting_test::getPolySlopeAtEntry(QImage &surface, QVector<entryPoint> &ePoints, int X)
+QVector<double> surface_fitting_test::getPolySlopeAtEntry(QImage &surface, int X)
 {
-    if(ePoints[X].yEntry!=0){
+    if(getFirstValueFromTop(surface,X)!=0){
 
         QVector<double> xValues;
         QVector<double> yValues;
-        //        qDebug()<<"xValues allokierte Größe: "<<xValues.size();
-        //        qDebug()<<"leeres array: "<<array;
         int realsize = 0;
-        //        qDebug()<<"Folgende Infos sind über den Eintrittspunkt bekannt: ";
-        //        qDebug()<<"Eintrittspunkt X: "<<ePoint.xEntry<<"\n Eintritt Y: "<<ePoint.yEntry<<"\n Steigung bei x/y: "<<ePoint.slopeEntry;
         for( int x = X-slopeSigmaMT; x<=X+slopeSigmaMT;x++){
             if(getFirstValueFromTop(surface,x)!=0){
-                //qDebug()<<"First Value from top: "<<x<<firstValueFromTop;
                 QVector<int> aScan = fillVectorWithAscan(surface,x);
                 double ariMi = getArithmicMiddle(aScan,getFirstValueFromTop(surface,x),slopePxlNoMT);
-                //qDebug()<<"AriMiddle: "<< ariMi;
                 xValues.append(x-X);
                 yValues.append(ariMi);
                 realsize++;
@@ -1176,11 +1066,155 @@ double surface_fitting_test::getPolySlopeAtEntry(QImage &surface, QVector<entryP
                 }
             }
         }
-        double gamba = poly->getSlope(xValues,yValues,array);
-        qDebug()<<"Gamba?"<<gamba;
+        QVector<double> gamba = poly->getSlope(xValues,yValues,array);
+        //qDebug()<<"Gamba?"<<gamba;
         return gamba;
     }else{
-        return 300;
+        return {300,300};
+    }
+}
+
+QVector<double> surface_fitting_test::getPolySlopeAtEntryQt(QImage &surface, int X)
+{
+    if(getFirstValueFromTop(surface,X)!=0){
+
+        QVector<double> xValues;
+        QVector<double> yValues;
+        int realsize = 0;
+        for( int x = X-slopeSigmaMT; x<=X+slopeSigmaMT;x++){
+            if(getFirstValueFromTop(surface,x)!=0){
+                QVector<int> aScan = fillVectorWithAscan(surface,x);
+                double ariMi = getArithmicMiddle(aScan,getFirstValueFromTop(surface,x),slopePxlNoMT);
+                xValues.append(x-X);
+                yValues.append(ariMi);
+                realsize++;
+            }
+        }
+        QVector<QVector<double>> array=QVector<QVector<double>>(realsize);
+        for(size_t i = 0; i < realsize; i++) {
+            array[i] = QVector<double>(realsize);
+            for(size_t j = 0; j < realsize; j++) {
+                if(i==j){
+
+                    array[i][j] = 1;
+                }else{
+                    array[i][j] = 0.;
+                }
+            }
+        }
+        QVector<double> gamba = poly->getSlopeStaticQt(xValues,yValues,array);
+        return gamba;
+    }else{
+        return {300,300};
+    }
+}
+
+QVector<double> surface_fitting_test::getPolySlopeAtExit(QImage &surface, int X)
+{
+    if(getFirstValueFromBottom(surface,X)!=0){
+
+        QVector<double> xValues;
+        QVector<double> yValues;
+        int realsize = 0;
+        for( int x = X-slopeSigmaMT; x<=X+slopeSigmaMT;x++){
+            if(getFirstValueFromBottom(surface,x)!=0){
+                QVector<int> aScan = fillVectorWithAscan(surface,x);
+                double ariMi = getArithmicMiddle(aScan,getFirstValueFromBottom(surface,x),-slopePxlNoMT);
+                xValues.append(x-X);
+                yValues.append(ariMi);
+                realsize++;
+            }
+        }
+        double **array;
+        array = new double*[realsize];
+        for(size_t i = 0; i < realsize; i++) {
+            array[i] = new double[realsize];
+        }
+        for(size_t i = 0; i < realsize; i++) {
+            for(size_t j = 0; j < realsize; j++) {
+                if(i==j){
+
+                    array[i][j] = 1;
+                }else{
+                    array[i][j] = 0.;
+                }
+            }
+        }
+        QVector<double> gamba = poly->getSlope(xValues,yValues,array);
+        return gamba;
+    }else{
+        return {300,300};
+    }
+}
+
+QVector<double> surface_fitting_test::getPolySlopeAtExitQt(QImage &surface, int X)
+{
+    if(getFirstValueFromBottom(surface,X)!=0){
+
+        QVector<double> xValues;
+        QVector<double> yValues;
+        int realsize = 0;
+        for( int x = X-slopeSigmaMT; x<=X+slopeSigmaMT;x++){
+            if(getFirstValueFromBottom(surface,x)!=0){
+                QVector<int> aScan = fillVectorWithAscan(surface,x);
+                double ariMi = getArithmicMiddle(aScan,getFirstValueFromBottom(surface,x),-slopePxlNoMT);
+                xValues.append(x-X);
+                yValues.append(ariMi);
+                realsize++;
+            }
+        }
+        QVector<QVector<double>> array=QVector<QVector<double>>(realsize);
+        for(size_t i = 0; i < realsize; i++) {
+            array[i] = QVector<double>(realsize);
+            for(size_t j = 0; j < realsize; j++) {
+                if(i==j){
+
+                    array[i][j] = 1;
+                }else{
+                    array[i][j] = 0.;
+                }
+            }
+        }
+        QVector<double> gamba = poly->getSlopeStaticQt(xValues,yValues,array);
+        return gamba;
+    }else{
+        return {300,300};
+    }
+}
+
+QVector<double> surface_fitting_test::getPolySlopeAtEntryStatic(QImage &surface, int X)
+{
+    if(getFirstValueFromTopStatic(surface,X)!=0){
+
+        QVector<double> xValues;
+        QVector<double> yValues;
+        int realsize = 0;
+        for( int x = X-slopeSigmaMT; x<=X+slopeSigmaMT;x++){
+            if(getFirstValueFromTopStatic(surface,x)!=0){
+                QVector<int> aScan = fillVectorWithAscanStatic(surface,x);
+                double ariMi = getArithmicMiddleStatic(aScan,getFirstValueFromTopStatic(surface,x),slopePxlNoMT);
+                xValues.append(x-X);
+                yValues.append(ariMi);
+                realsize++;
+            }
+        }
+        QVector<QVector<double>> array=QVector<QVector<double>>(realsize);
+        for(size_t i = 0; i < realsize; i++) {
+            array[i] = QVector<double>(realsize);
+            for(size_t j = 0; j < realsize; j++) {
+                if(i==j){
+
+                    array[i][j] = 1;
+                }else{
+                    array[i][j] = 0.;
+                }
+            }
+        }
+        QVector<double> gamba = polyFit::getSlopeStaticQt(xValues,yValues,array);
+        //qDebug()<<"Gamba?"<<gamba;
+        return gamba;
+    }else{
+        return {300,300};
     }
 }
 
@@ -1208,6 +1242,39 @@ int surface_fitting_test::getColorStatic(QImage &image, int x, int y)
 {
     QColor color = image.pixelColor(x,y);
     return color.green();
+}
+
+QVector<int> surface_fitting_test::fillVectorWithAscanStatic(QImage image, int X)
+{
+    QVector<int> vec = QVector<int>(image.height());
+    vec.fill(0,image.height());
+
+    for(int i = 0;i<image.height();i++){
+     vec[i]=getColorStatic(image,X,i);
+    }
+    return vec;
+}
+
+double surface_fitting_test::getArithmicMiddleStatic(QVector<int> vec, int base, int integral)
+{
+    if(base==0){
+        //qDebug()<<"0 was passed to this function";
+        return 0;
+    }
+    double sum = 0;
+    double frac = 0;
+    if(integral>0){
+        for(int i=0;i<=integral;i++){
+            sum = sum + (base + i)*vec[base+i];
+            frac = frac + vec[base + i];
+        }
+    }else{
+        for(int i=0;i>=integral;i--){
+            sum = sum + (base + i)*vec[base+i];
+            frac = frac + vec[base + i];
+        }
+    }
+    return double (sum/frac);
 }
 
 QVector<double> surface_fitting_test::getSlopeAtEntryStatic(QImage image, int X, int sigma)
@@ -1327,7 +1394,7 @@ double surface_fitting_test::calculateCameraPoint(double mediumRI, double yExit,
     double radiusGlassCuvette = 9.0;
     double n2 = 1.523;
     double n3 = 1;
-    double y1 = radiusGlassCuvette-yExit;
+    double y1 = radiusGlassCuvette+yExit-inputSurface.height()/2;
     double y2 = 2.0;
     double y3 = 73.0;
     double x1 = y1*qTan(angleExit);
@@ -1340,27 +1407,25 @@ double surface_fitting_test::calculateCameraPoint(double mediumRI, double yExit,
     return xExit + x1 + x2 + x3;
 }
 
-QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurface, int xEntry, double mediaRI, double samplRi)
+QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, int xEntry, double mediaRI, double samplRi)
 {
     struct entryPoint myPoint;
     myPoint.xEntry = xEntry;
-    if(getFirstValueFromTop(thinSurface,xEntry-1)!=0 && getFirstValueFromTop(thinSurface,xEntry)!=0 && getFirstValueFromTop(thinSurface,xEntry+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
-        QVector<double>bufVec = getSlopeAtEntry(thinSurface,xEntry,ui->spinBox_slopeSigma->value());
-        //Hier Polyfit-Option einfügen!!
-        double exitAngle = getExitAngle(bufVec[1],mediaRI,samplRi);
-//        qDebug()<<"Entry Slope ist: "<<bufVec[1];
-//        qDebug()<<"Exit Angle in Probe: "<<exitAngle;
-        myPoint.gammaEntry = exitAngle;
-        myPoint.yEntry = bufVec[0];
-        if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
+    QImage thinSurface = thinOutSurface(surface);
+    if(getFirstValueFromTop(surface,xEntry-1)!=0 && getFirstValueFromTop(surface,xEntry)!=0 && getFirstValueFromTop(surface,xEntry+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
+        QVector<double> slope = getPolySlopeAtEntryQt(surface,xEntry);
+        myPoint.gammaEntry = getExitAngle(slope[0],mediaRI,samplRi);
+        myPoint.yEntry = slope[1];
+        QVector<double> rayVector = parameterizeFromAngle(xEntry,myPoint.yEntry, myPoint.gammaEntry);
+        if( myPoint.gammaEntry>=0&& myPoint.gammaEntry<1.0){  //Strahl wird nach rechts abgelenkt
             int X=xEntry;
             bool success = false;
             while(success == false && getFirstValueFromBottom(thinSurface,X+1)>0){
                 QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(thinSurface,X), X+1, getFirstValueFromBottom(thinSurface,X+1));
-                QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                 if(intersection[0]>=X&&intersection[0]<X+1){
                     myPoint.lengthEntry = intersection[2];
+                    myPoint.yExit = intersection[1];
                     success = true;
                 }else{
                     X++;
@@ -1370,20 +1435,20 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
                 //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<q<<x;
                 if(getFirstValueFromTop(thinSurface,X)!=getFirstValueFromBottom(thinSurface,X)){
                     QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(thinSurface,X), X, getFirstValueFromBottom(thinSurface,X));
-                    QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
                     QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                     if(intersection[1]>=getFirstValueFromTop(thinSurface,X)&&intersection[1]<=getFirstValueFromBottom(thinSurface,X)){
                         //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
                         myPoint.lengthEntry = intersection[2];
+                        myPoint.yExit = intersection[1];
                         success = true;
                     }
                 }
                 while(success == false && X>=xEntry){
                     QVector<double> surfaceVector = parameterizeFromPoints(X-1, getFirstValueFromTop(thinSurface,X-1), X, getFirstValueFromTop(thinSurface,X));
-                    QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
                     QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                    if(intersection[0]>=X&&intersection[0]<X+1){
+                    if(intersection[0]>=X-1&&intersection[0]<X){
                         myPoint.lengthEntry = intersection[2];
+                        myPoint.yExit = intersection[1];
                         //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                         success = true;
                     }else{
@@ -1391,15 +1456,15 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
                     }
                 }
             }
-        }else if(exitAngle<0&&exitAngle>-1.0){  //Strahl wird nach links abgelenkt
+        }else if(myPoint.gammaEntry<0&&myPoint.gammaEntry>-1.0){  //Strahl wird nach links abgelenkt
             int X=xEntry;
             bool success = false;
             while(success == false && getFirstValueFromBottom(thinSurface,X-1) > 0){
                 QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(thinSurface,X), X-1, getFirstValueFromBottom(thinSurface,X-1));
-                QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                 if(intersection[0]<=X&&intersection[0]>X-1){
                     myPoint.lengthEntry = intersection[2];
+                    myPoint.yExit = intersection[1];
                     success = true;
                 }else{
                     X--;
@@ -1409,20 +1474,20 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
                 //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<q<<x;
                 if(getFirstValueFromTop(thinSurface,X)!=getFirstValueFromBottom(thinSurface,X)){
                     QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(thinSurface,X), X, getFirstValueFromBottom(thinSurface,X));
-                    QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
                     QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                     if(intersection[1]>=getFirstValueFromTop(thinSurface,X)&&intersection[1]<=getFirstValueFromBottom(thinSurface,X)){
                         //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
                         myPoint.lengthEntry = intersection[2];
+                        myPoint.yExit = intersection[1];
                         success = true;
                     }
                 }
                 while(success == false && X<=xEntry){
                     QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(thinSurface,X), X+1, getFirstValueFromTop(thinSurface,X+1));
-                    QVector<double> rayVector = parameterizeFromAngle(xEntry,bufVec[0],exitAngle);
                     QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                     if(intersection[0]>=X&&intersection[0]<X+1){
                         myPoint.lengthEntry = intersection[2];
+                        myPoint.yExit = intersection[1];
                         //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                         success = true;
                     }else{
@@ -1430,7 +1495,7 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
                     }
                 }
             }
-        }else if(exitAngle==1){
+        }else if(myPoint.gammaEntry==1){
             //qDebug()<<"Strahl wurde totalreflektiert!";
             return {double(xEntry),0,1};
         }else{
@@ -1438,25 +1503,22 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage thinSurfac
             return {double(xEntry),0,-1};
         }
 
-//    qDebug()<<"Strahl an Eingang "<<xEntry<<" simuliert.";
-//    qDebug()<<"Ablenkung am Eingang betrug "<<entryPoint[1];
-    double exitPositionX = xEntry + myPoint.lengthEntry*qSin(myPoint.gammaEntry);
-    //qDebug()<<"Exit Position X betrug: "<<exitPositionX;
-    QVector<double> exitSlope = getSlopeAtExit(thinSurface,std::round(exitPositionX),ui->spinBox_slopeSigma->value());
-    //qDebug()<<"Exit Slope ist: "<<exitSlope[1];
-    double backExitAngle = getExitAngleAtBack(exitSlope[1],samplRi,mediaRI,myPoint.gammaEntry);
-    //qDebug()<<"Winkel hinter der Oberfläche: "<<backExitAngle;
-    //qDebug()<<"test, ob mein struct funzt: neu (ablenkung): "<<myPoint.gammaEntry;
-    return {exitPositionX, exitSlope[0], backExitAngle};
+    myPoint.xExit = xEntry + myPoint.lengthEntry*qSin(myPoint.gammaEntry);
+
+    double exitSlope = getPolySlopeAtExit(surface,std::round(myPoint.xExit))[0];
+
+    double backExitAngle = getExitAngleAtBack(exitSlope,samplRi,mediaRI,myPoint.gammaEntry);
+
+    return {myPoint.xExit, myPoint.yExit, backExitAngle};
 }else{
         return {double(xEntry),0,0};
     }
 }
-QVector<double> surface_fitting_test::generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI)
+QVector<double> surface_fitting_test::generateRefractionPattern(QImage surface, double mediaRI, double sampleRI)
 {
-    QVector<double> pattern = QVector<double>(thinSurface.width());
-    for(int x = 0; x<thinSurface.width(); x++){
-        QVector<double> exit = getBackExitPointAndAngle(thinSurface,x,mediaRI,sampleRI);
+    QVector<double> pattern = QVector<double>(surface.width());
+    for(int x = 0; x<surface.width(); x++){
+        QVector<double> exit = getBackExitPointAndAngle(surface,x,mediaRI,sampleRI);
         pattern[x]=calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
         if(exit[2]==-1||exit[2]==1){
             qDebug()<<"Strahl wurde totalreflektiert beim pattern-gen";
@@ -1470,6 +1532,7 @@ void surface_fitting_test::determineTeleError(QVector<QVector<double> > moments)
 {
     int scanPoints = moments.size();
     qDebug()<<scanPoints;
+    qDebug()<<"Hardgecodeter Offset Per Pixel auf Sensor: "<<mmPerPixelOnSensor;
     //Ablenkung in Probe und Ablenkung auf Sensor vergleichen
     double relativeScanMovementInSample = scanPoints*mmPerPixelInReco;
     qDebug()<<"Der Laser wurde in der Probe um "<<relativeScanMovementInSample<<" in x-Richtung bewegt";
@@ -1490,31 +1553,30 @@ QVector<QVector<double> > surface_fitting_test::makeListRelativeAndScaled(QVecto
     return moments;
 }
 
-double surface_fitting_test::getFittingSampleRI(QImage thinSurface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset)
+double surface_fitting_test::getFittingSampleRI(QImage surface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset)
 {
     //double mmPerPixel = 0.01;
     double currTestRi = expectedSampleRI - riRange;
     double smallestDeviation = 100;
     double fittingRi = 333;
-    if(getFirstValueFromTop(thinSurface,xEntry)==0){
+    if(getFirstValueFromTop(surface,xEntry)==0){
         return 999;
     }
-    QVector<double> entrySlopeVec = getSlopeAtEntry(thinSurface,xEntry,ui->spinBox_slopeSigma->value());
-    if(entrySlopeVec[1]==0){
-        QVector<double> exitSlopeVec = getSlopeAtExit(thinSurface,xEntry,ui->spinBox_slopeSigma->value());
-        if(exitSlopeVec[1]==0){
+    double entrySlope = getPolySlopeAtEntryQt(surface,xEntry)[0];
+    if(entrySlope==0){
+        double exitSlope = getPolySlopeAtExit(surface,xEntry)[0];
+        if(exitSlope==0){
             return 777;
         }
     }
     while(currTestRi <=expectedSampleRI+riRange){
-        QVector<double> exit = getBackExitPointAndAngle(thinSurface,xEntry,mediaRI,currTestRi);
-        //qDebug()<<"Back Exit Point: " << xEntry<<currTestRi <<exit;
+        QVector<double> exit = getBackExitPointAndAngle(surface,xEntry,mediaRI,currTestRi);
+
         if(exit[2]>-1&&exit[2]<1){
             double cameraPoint =calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
             if(std::abs(cameraPoint-xCameraPoint)<smallestDeviation){
                 fittingRi = currTestRi;
                 smallestDeviation = std::abs(cameraPoint-xCameraPoint);
-                //qDebug()<<"Aktuell kleinste Abweichung ist: "<<std::abs(cameraPoint-xCameraPoint);
             }
         }
         currTestRi = currTestRi + riIncriment;
@@ -1563,12 +1625,11 @@ void surface_fitting_test::on_spinBox_aScan_valueChanged(int arg1)
     on_spinBox_rotateDisplayImageBy_valueChanged(ui->spinBox_rotateDisplayImageBy->value());
     QVector<double> slope{0,0};
     slope = getSlopeAtEntry(bufferImg,arg1,ui->spinBox_slopeSigma->value());
-    double polySlope = getPolySlopeAtEntry(rotatedSurfaces[0],newRotatedEntryPoints[0],arg1);
+    QVector<double> polySlope = getPolySlopeAtEntryQt(bufferImg,arg1);
     if(slope[1]!=999){
-        qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
+        //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
         qDebug()<<"polySlope at"<<ui->spinBox_aScan->value()<<"is: "<< polySlope;
-        drawAndDisplaySlope(bufferImg,arg1,newRotatedEntryPoints[0][arg1].yEntry,polySlope,20);
-        //qDebug()<<getDeltaThetaForPartner(slope[1],riMedium,riSample);
+        drawAndDisplaySlope(bufferImg,arg1,std::round(polySlope[1]),polySlope[0],20);
     }
 }
 
@@ -1577,7 +1638,7 @@ void surface_fitting_test::on_spinBox_slopeSigma_valueChanged(int arg1)
     QVector<double> slope{0,0};
     slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),arg1);
     if(slope[1]!=999){
-        qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
+        //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
         drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
     }
     slopeSigmaMT = arg1;
@@ -1615,7 +1676,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
             newRotatedEntryPoints[k] = QVector<entryPoint>(rotatedSurfacesThinnedOut[0].width());
         }
         newSurfaceList = makeNewStructVector(rotatedSurfacesThinnedOut,rotatedSurfaces,newRotatedEntryPoints);
-        QtConcurrent::blockingMap(surfaceList,&surface_fitting_test::propagateRayMultiThreaded);
         QtConcurrent::blockingMap(newSurfaceList,&surface_fitting_test::newPropagateRayMultiThreaded);
         qDebug()<<"Strahlen wurden MT propagiert"<<externalCorrectionTimer.restart();
         for(int k=0; k<newSurfaceList.size();k++){
@@ -1684,26 +1744,25 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                     }
                 }
                 if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x-1)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
-                    QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[q],x,ui->spinBox_slopeSigma->value());
-                    newRotatedEntryPoints[q][x].yEntry = bufVec[0];
-                    //polyfit option einfügen!!
+                                        //polyfit option einfügen!!
                     if(usePolyFit){
-                        newRotatedEntryPoints[q][x].slopeEntry = getPolySlopeAtEntry(rotatedSurfaces[q],newRotatedEntryPoints[q],x);
+                        QVector<double> slopeVec = getPolySlopeAtEntryQt(rotatedSurfaces[q],x);
+                        newRotatedEntryPoints[q][x].slopeEntry = slopeVec[0];
+                        newRotatedEntryPoints[q][x].yEntry = slopeVec[1];
                         newRotatedEntryPoints[q][x].gammaEntry = getExitAngle(newRotatedEntryPoints[q][x].slopeEntry,riMedium,riSample);
-                        if(x==100){
-                            qDebug()<<"Slope und gamma sind: "<<newRotatedEntryPoints[q][x].slopeEntry<<newRotatedEntryPoints[q][x].gammaEntry;
-                        }
                     }else{
+                        QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[q],x,ui->spinBox_slopeSigma->value());
                         double exitAngle = getExitAngle(bufVec[1],riMedium,riSample);
+                        newRotatedEntryPoints[q][x].yEntry = bufVec[0];
                         newRotatedEntryPoints[q][x].gammaEntry = exitAngle;
                         newRotatedEntryPoints[q][x].slopeEntry = bufVec[1];
                     }
+                    QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                     if(newRotatedEntryPoints[q][x].gammaEntry>=0&&newRotatedEntryPoints[q][x].gammaEntry<1.0){  //Strahl wird nach rechts abgelenkt
                         int X=x;
                         bool success = false;
                         while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X+1)>0){
                             QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X), X+1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X+1));
-                            QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X&&intersection[0]<X+1){
                                 newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
@@ -1716,7 +1775,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<q<<x;
                             if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                 QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
-                                QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                     //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
@@ -1726,9 +1784,8 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             }
                             while(success == false && X>=x){
                                 QVector<double> surfaceVector = parameterizeFromPoints(X-1, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X-1), X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X));
-                                QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                                if(intersection[0]>=X&&intersection[0]<X+1){
+                                if(intersection[0]>=X-1&&intersection[0]<X){
                                     newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
                                     //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
                                     success = true;
@@ -1742,7 +1799,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                         bool success = false;
                         while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X-1) > 0){
                             QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X), X-1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X-1));
-                            QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]<=X&&intersection[0]>X-1){
                                 newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
@@ -1755,7 +1811,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<q<<x;
                             if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                 QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X));
-                                QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[q],X)){
                                     //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
@@ -1765,7 +1820,6 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                             }
                             while(success == false && X<=x){
                                 QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X), X+1, getFirstValueFromTop(rotatedSurfacesThinnedOut[q],X+1));
-                                QVector<double> rayVector = parameterizeFromAngle(x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry);
                                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                                 if(intersection[0]>=X&&intersection[0]<X+1){
                                     newRotatedEntryPoints[q][x].lengthEntry = intersection[2];
@@ -1833,7 +1887,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
     if(createTransmission){
         transmissionHisto.save(inputPathSurface+"\\"+nameRI+nrOfProjString+"_transmissionFromHisto.png");
     }
-    qDebug()<<"jo";
+    qDebug()<<"jo, fertig mit "<< nameRI+nrOfProjString+"_sinogramFromHisto.png"<<externalCorrectionTimer.elapsed();
 }
 
 
@@ -1844,7 +1898,7 @@ void surface_fitting_test::on_doubleSpinBox_riMedium_valueChanged(double arg1)
     riMediumMT = riMedium;
     slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),ui->spinBox_slopeSigma->value());
     if(slope[1]!=999){
-        qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
+        //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
         drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
     }
 }
@@ -1857,7 +1911,7 @@ void surface_fitting_test::on_doubleSpinBox_riSample_valueChanged(double arg1)
     riSampleMT = riSample;
     slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),ui->spinBox_slopeSigma->value());
     if(slope[1]!=999){
-        qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
+        //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
         drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
     }
 }
@@ -1886,8 +1940,9 @@ void surface_fitting_test::on_spinBox_rotateDisplayImageBy_valueChanged(int arg1
             }
         }
     }
-    bufferImg = thinOutSurface(bufferImg);
-    on_pushButton_getSlopeAt_clicked();
+    //on_spinBox_aScan_valueChanged(ui->spinBox_aScan->value());
+    QVector<double> slopevec = getPolySlopeAtEntryQt(bufferImg,ui->spinBox_aScan->value());
+    drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slopevec[1],slopevec[0],20);
 }
 
 
@@ -2047,12 +2102,12 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-//    //getPolySlopeAtEntry(rotatedSurfaces[0],newRotatedEntryPoints[0][100]);
+    //getPolySlopeAtEntry(rotatedSurfaces[0],newRotatedEntryPoints[0][100]);
 //    determineTeleError(momentsList);
 //    momentsList = makeListRelativeAndScaled(momentsList);
 //    QVector<double> fittedRI(momentsList.size());
 //    for (int x = 2; x<momentsList.size()-2;x++){
-//        fittedRI[x] = getFittingSampleRI(rotatedSurfacesThinnedOut[0],x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.01,0.001,0.1);
+//        fittedRI[x] = getFittingSampleRI(rotatedSurfaces[0],x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.0002,0.1);
 //        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
 //    }
 //    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
@@ -2065,18 +2120,27 @@ void surface_fitting_test::on_pushButton_testMath_clicked()
 //        sum = sum + fittedRI[i];
 //    }
 //    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
-    QElapsedTimer time;
-    time.start();
+
+//    QElapsedTimer time;
+//    time.start();
     poly = new polyFit();
-    for(int k = 0; k<rotatedSurfaces.size();k++){
-        for(int i = 0; i<rotatedSurfaces[0].width();i++){
-            if(newRotatedEntryPoints[k][i].yEntry!=0){
-                qDebug()<<"Nummer des AScans: "<<i;
-                getPolySlopeAtEntry(rotatedSurfaces[k],newRotatedEntryPoints[k],i);
-            }
-        }
-    }
-    qDebug()<<"Fit hat gedauert: "<<time.elapsed();
+        QElapsedTimer time;
+        time.start();
+    qDebug()<<"Slope ohne Qt: "<<getPolySlopeAtEntry(inputSurface,ui->spinBox_aScan->value())<<time.nsecsElapsed();
+    qDebug()<<"Slope mit Qt: "<<getPolySlopeAtEntryQt(inputSurface,ui->spinBox_aScan->value())<<time.nsecsElapsed();
+//    for(int k = 0; k<rotatedSurfaces.size();k++){
+//        for(int i = 0; i<rotatedSurfaces[0].width();i++){
+//            if(newRotatedEntryPoints[k][i].yEntry!=0){
+//                qDebug()<<"Nummer des AScans: "<<i;
+//                getPolySlopeAtEntry(rotatedSurfaces[k],newRotatedEntryPoints[k],i);
+//            }
+//        }
+//    }
+//    getPolySlopeAtEntry(rotatedSurfaces[0],ui->spinBox_aScan->value());
+//    getPolySlopeAtExit(rotatedSurfaces[0],ui->spinBox_aScan->value());
+//    qDebug()<<"Fit hat gedauert: "<<time.elapsed();
+//    generateRefractionPattern(inputSurface,riMedium,riSample);
+
 }
 
 void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
@@ -2393,7 +2457,6 @@ void surface_fitting_test::on_checkBox_useMultiThreading_stateChanged(int arg1)
         useMultiThreading = false;
     }else{
         useMultiThreading = true;
-        ui->checkBox_usePolyFit->setChecked(false);
     }
     qDebug()<<"Multithreading aktivier: "<<useMultiThreading;
 }
@@ -2431,7 +2494,7 @@ void surface_fitting_test::on_spinBox_ariMiddleSigma_valueChanged(int arg1)
     on_spinBox_rotateDisplayImageBy_valueChanged(ui->spinBox_rotateDisplayImageBy->value());
     slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),ui->spinBox_slopeSigma->value());
     if(slope[1]!=999){
-        qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
+        //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
         drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
     }
 }
@@ -2439,8 +2502,5 @@ void surface_fitting_test::on_spinBox_ariMiddleSigma_valueChanged(int arg1)
 void surface_fitting_test::on_checkBox_usePolyFit_stateChanged(int arg1)
 {
     usePolyFit = arg1;
-    if(arg1){
-    ui->checkBox_useMultiThreading->setChecked(false);
-    }
+    usePoly = arg1;
 }
-
