@@ -44,9 +44,11 @@ public:
 
     static QVector<QVector<double>> makeQtMat(int rows, int cols);
 
+    static void displayPolyQt(size_t k);
+
     static QVector<double> getSlopeStatic(QVector<double> xVec, QVector<double> yVec, double **Weights);
 
-    static QVector<double> getSlopeStaticQt(QVector<double> xVec, QVector<double> yVec, QVector<QVector<double>> Weights);
+    static QVector<double> getSlopeStaticQt(QVector<double> xVec, QVector<double> yVec, QVector<QVector<double>> Weights, int order);
 
 signals:
 

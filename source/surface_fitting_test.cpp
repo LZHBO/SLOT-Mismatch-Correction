@@ -6,6 +6,7 @@ double surface_fitting_test::riSampleMT = 1;
 int surface_fitting_test::slopeSigmaMT = 1;
 int surface_fitting_test::slopePxlNoMT = 1;
 bool surface_fitting_test::usePoly = 1;
+int surface_fitting_test::fitOrderMT = 1;
 
 surface_fitting_test::surface_fitting_test(QWidget *parent) :
     QWidget(parent),
@@ -18,6 +19,8 @@ surface_fitting_test::surface_fitting_test(QWidget *parent) :
     riSample = riSampleMT;
     slopeSigmaMT = ui->spinBox_slopeSigma->value();
     slopePxlNoMT = ui->spinBox_ariMiddleSigma->value();
+    fitOrder = ui->spinBox_fitOrder->value();
+    fitOrderMT = fitOrder;
 }
 
 surface_fitting_test::~surface_fitting_test()
@@ -41,8 +44,7 @@ void surface_fitting_test::on_pushButton_loadAndDisplay_clicked()
         qDebug()<<"Failed to load input histogram, check path";
     }
     inputHisto.convertTo(QImage::Format_Grayscale8,Qt::AutoColor);
-    bufferImg = QImage(inputSurface.size(),QImage::Format_Grayscale8);
-    bufferImg = thinOutSurface(inputSurface);
+    bufferImg = inputSurface;
     displayImageLeft(inputSurface);
     riMedium = ui->doubleSpinBox_riMedium->value();
     riSample = ui->doubleSpinBox_riSample->value();
@@ -70,8 +72,7 @@ void surface_fitting_test::on_pushButton_loadAndDisplaySinogram_clicked()
     if(inputSinogram.width()!=inputSurface.width()){
         qDebug()<<"Sinogram and Surface don't match!!";
     }
-    bufferImg = QImage(inputSurface.size(),QImage::Format_Grayscale8);
-    bufferImg = thinOutSurface(inputSurface);
+    bufferImg = inputSurface;
     displayImageLeft(inputSurface);
     numberOfProjections = inputSinogram.height()-2;
     riMedium = ui->doubleSpinBox_riMedium->value();
@@ -112,32 +113,6 @@ double surface_fitting_test::getArithmicMiddle(QVector<int> vec, int base, int i
         return double (sum/frac);
 }
 
-//double surface_fitting_test::getArithmicMiddleAF(QVector<int> vec, int base, int integral)
-//{
-//    QElapsedTimer timer;
-//    timer.start();
-//    if(base==0){
-//        //qDebug()<<"0 was passed to this function";
-//        return 0;
-//    }
-//    af::array baseAF = range(af::dim4(integral));
-//    qDebug()<<timer.elapsed();
-//    baseAF = baseAF.operator+=(base); //das sollte die Base zu jedem Element des Arrays hinzufügen...
-//    af_print(baseAF);
-//    vec.remove(base + integral-1,1+vec.size()-base-integral);
-//    vec.remove(0,base-1);
-//    qDebug()<<vec;
-//    int slorp[4];
-//    for(int i = 0; i< integral;i++){
-//        slorp[i]=vec[i];
-//    }
-//    af::array vecAF(4,1,slorp);
-//    af_print(vecAF);
-//    vecAF = vecAF.operator*=(baseAF);
-//    af_print(vecAF);
-//    qDebug()<<timer.elapsed();
-//    return 0;
-//}
 
 QVector<int> surface_fitting_test::fillVectorWithAscan(QImage image, int X)
 {
@@ -262,8 +237,9 @@ double surface_fitting_test::getDeltaThetaForPartner(double slope, double n1, do
 }
 int surface_fitting_test::getFirstValueFromTop(QImage image, int X)
 {
-    QElapsedTimer timer;
-    timer.start();
+    if(X<0||X>=image.width()){
+        return 0;
+    }
     for(int y = 0;y<image.height();y++){
         if(getColor(image,X,y)!=0){
             //qDebug()<<"First Value from top nsec:"<<timer.nsecsElapsed();
@@ -275,6 +251,9 @@ int surface_fitting_test::getFirstValueFromTop(QImage image, int X)
 
 int surface_fitting_test::getFirstValueFromBottom(QImage image, int X)
 {
+    if(X<0||X>=image.width()){
+        return 0;
+    }
     for(int y = image.height()-1;y>=0;y--){
         if(getColor(image,X,y)!=0){
             return y;
@@ -285,26 +264,14 @@ int surface_fitting_test::getFirstValueFromBottom(QImage image, int X)
 
 QImage surface_fitting_test::thinOutSurface(QImage image)
 {
-//    QElapsedTimer timer,grandTimer;
-//    timer.start();
-//    grandTimer.start();
     QImage output = QImage(image.size(),QImage::Format_Grayscale8);
     output.fill(0);
     for(int x = 0;x<image.width();x++){
         int y=getFirstValueFromTop(image,x);
-        //qDebug()<<"getFirstValueFromTop"<<timer.nsecsElapsed();
-        //timer.restart();
         if(y!=0){
             QVector<int> ascan = fillVectorWithAscan(image,x);
-            //qDebug()<<"Vector mit AScan gefüllt"<<timer.nsecsElapsed();
-            //timer.restart();
             double middle = getArithmicMiddle(ascan,y,arithMiddleSigma);
-            //qDebug()<<"getArithmicMiddle"<<timer.nsecsElapsed();
-            //timer.restart();
             output.setPixelColor(x,std::round(middle),255);
-            //output = setPixelColor8Bit(output,x,std::round(middle),255,bytesPerLine);
-            //qDebug()<<"setPixelColorQBit"<<timer.nsecsElapsed();
-            //timer.restart();
         }
     }
     for(int x = 0;x<image.width();x++){
@@ -312,11 +279,9 @@ QImage surface_fitting_test::thinOutSurface(QImage image)
         if(y!=0){
             QVector<int> ascan = fillVectorWithAscan(image,x);
             double middle = getArithmicMiddle(ascan,y,-arithMiddleSigma);
-            //output = setPixelColor8Bit(output,x,std::round(middle),255,bytesPerLine);
             output.setPixelColor(x,std::round(middle),255);
         }
     }
-    //qDebug()<<"Ein Surface thinned out"<<grandTimer.elapsed();
     return output;
 }
 
@@ -591,7 +556,9 @@ void surface_fitting_test::drawAndDisplaySlope(QImage image, int X, int Y, doubl
     double gamma = getExitAngle(slope,riMedium,riSample);
     qDebug()<<"Gamma beträgt: "<<gamma;
     for(int y = 0;y<image.height()/10;y++){
+        drawn.setPixelColor(X-1+std::round(y*qTan(gamma)),y+Y,Qt::red);
         drawn.setPixelColor(X+std::round(y*qTan(gamma)),y+Y,Qt::red);
+        drawn.setPixelColor(X+1+std::round(y*qTan(gamma)),y+Y,Qt::red);
     }
     displayImageLeft(drawn);
 }
@@ -624,8 +591,6 @@ double surface_fitting_test::getExitAngleAtBack(double slope, double nSample, do
 
 double surface_fitting_test::getValueForGaussDistribution(double gammaX, double gammaY, int x, int y, double sigma)
 {
-    //double value = (1/(2*M_PI*pow(sigma,2)))*exp(((-1)/(2*pow(sigma,2)))*(pow(x-gammaX,2)+pow(y-gammaY,2)));
-    //return value;
     return (1/(2*M_PI*pow(sigma,2)))*exp(((-1)/(2*pow(sigma,2)))*(pow(x-gammaX,2)+pow(y-gammaY,2)));
 }
 
@@ -708,8 +673,6 @@ QVector<double> surface_fitting_test::getIntersectionPoint(QVector<double> ray, 
 
 double surface_fitting_test::linInterpolation(double x1, double x2, double y1, double y2, double x)
 {
-//    double result = y1+(x2-x)*(y2-y1)/(x2-x1);
-//    return result;
     return y1+(x2-x)*(y2-y1)/(x2-x1);
 }
 
@@ -803,8 +766,6 @@ double surface_fitting_test::bilinInterpolFromSinogram(QImage sino, double x, do
     quint16 *dstSinoY2 = (quint16*)(sino.bits()+y2*sino.bytesPerLine());
     double q12 = dstSinoY2[x1];
     double q22 = dstSinoY2[x2];
-    //double result = bilinInterpolation(q11,q12,q21,q22,x1,x2,y1,y2,x,y);
-    //return result;
     return bilinInterpolation(q11,q12,q21,q22,x1,x2,y1,y2,x,y);
 }
 
@@ -934,8 +895,8 @@ int surface_fitting_test::newPropagateRayMultiThreaded(newSurfaceInfo &surfaceLi
         if(getFirstValueFromTopStatic(surfaceList.thinnedOut,x-1)!=0 && getFirstValueFromTopStatic(surfaceList.thinnedOut,x)!=0 && getFirstValueFromTopStatic(surfaceList.thinnedOut,x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
             surfaceList.ePoints[x].xEntry = x;
             if(usePoly){
-                surfaceList.ePoints[x].slopeEntry = getPolySlopeAtEntryStatic(surfaceList.rotSurface,x)[0];
-                surfaceList.ePoints[x].yEntry = getPolySlopeAtEntryStatic(surfaceList.rotSurface,x)[1];
+                surfaceList.ePoints[x].slopeEntry = getPolySlopeAtEntryStatic(surfaceList.rotSurface,x,fitOrderMT,true)[0];
+                surfaceList.ePoints[x].yEntry = getPolySlopeAtEntryStatic(surfaceList.rotSurface,x,fitOrderMT,true)[1];
                 surfaceList.ePoints[x].gammaEntry = getExitAngleStatic(surfaceList.ePoints[x].slopeEntry,riMediumMT,riSampleMT);
             }else{
                 QVector<double>bufVec = getSlopeAtEntryStatic(surfaceList.thinnedOut,x,slopeSigmaMT);
@@ -1074,7 +1035,7 @@ QVector<double> surface_fitting_test::getPolySlopeAtEntry(QImage &surface, int X
     }
 }
 
-QVector<double> surface_fitting_test::getPolySlopeAtEntryQt(QImage &surface, int X)
+QVector<double> surface_fitting_test::getPolySlopeAtEntryQt(QImage &surface, int X, int order, bool applyWeighting)
 {
     if(getFirstValueFromTop(surface,X)!=0){
 
@@ -1095,14 +1056,18 @@ QVector<double> surface_fitting_test::getPolySlopeAtEntryQt(QImage &surface, int
             array[i] = QVector<double>(realsize);
             for(size_t j = 0; j < realsize; j++) {
                 if(i==j){
-
-                    array[i][j] = 1;
+                    if(applyWeighting){
+                        double weighting = qPow(realsize-std::abs(xValues[i]),2)/10.0;
+                        array[i][j] = weighting;
+                    }else{
+                        array[i][j] = 1;
+                    }
                 }else{
                     array[i][j] = 0.;
                 }
             }
         }
-        QVector<double> gamba = poly->getSlopeStaticQt(xValues,yValues,array);
+        QVector<double> gamba = poly->getSlopeStaticQt(xValues,yValues,array,order);
         return gamba;
     }else{
         return {300,300};
@@ -1147,7 +1112,7 @@ QVector<double> surface_fitting_test::getPolySlopeAtExit(QImage &surface, int X)
     }
 }
 
-QVector<double> surface_fitting_test::getPolySlopeAtExitQt(QImage &surface, int X)
+QVector<double> surface_fitting_test::getPolySlopeAtExitQt(QImage &surface, int X, int order, bool applyWeighting)
 {
     if(getFirstValueFromBottom(surface,X)!=0){
 
@@ -1168,21 +1133,23 @@ QVector<double> surface_fitting_test::getPolySlopeAtExitQt(QImage &surface, int 
             array[i] = QVector<double>(realsize);
             for(size_t j = 0; j < realsize; j++) {
                 if(i==j){
-
-                    array[i][j] = 1;
+                    if(applyWeighting){
+                        double weighting = qPow(realsize-std::abs(xValues[i]),2)/10.0;
+                        array[i][j] = weighting;
+                    }
                 }else{
                     array[i][j] = 0.;
                 }
             }
         }
-        QVector<double> gamba = poly->getSlopeStaticQt(xValues,yValues,array);
+        QVector<double> gamba = poly->getSlopeStaticQt(xValues,yValues,array, order);
         return gamba;
     }else{
         return {300,300};
     }
 }
 
-QVector<double> surface_fitting_test::getPolySlopeAtEntryStatic(QImage &surface, int X)
+QVector<double> surface_fitting_test::getPolySlopeAtEntryStatic(QImage &surface, int X, int order, bool applyWeighting)
 {
     if(getFirstValueFromTopStatic(surface,X)!=0){
 
@@ -1210,7 +1177,7 @@ QVector<double> surface_fitting_test::getPolySlopeAtEntryStatic(QImage &surface,
                 }
             }
         }
-        QVector<double> gamba = polyFit::getSlopeStaticQt(xValues,yValues,array);
+        QVector<double> gamba = polyFit::getSlopeStaticQt(xValues,yValues,array, order);
         //qDebug()<<"Gamba?"<<gamba;
         return gamba;
     }else{
@@ -1220,6 +1187,9 @@ QVector<double> surface_fitting_test::getPolySlopeAtEntryStatic(QImage &surface,
 
 int surface_fitting_test::getFirstValueFromTopStatic(QImage &image, int X)
 {
+    if(X<0||X>=image.width()){
+        return 0;
+    }
     for(int y = 0;y<image.height();y++){
         if(getColorStatic(image,X,y)!=0){
             return y;
@@ -1228,8 +1198,11 @@ int surface_fitting_test::getFirstValueFromTopStatic(QImage &image, int X)
     return 0;
 }
 
-int surface_fitting_test::getFirstValueFromBottomStatic(QImage image, int X)
+int surface_fitting_test::getFirstValueFromBottomStatic(QImage &image, int X)
 {
+    if(X<0||X>=image.width()){
+        return 0;
+    }
     for(int y = image.height()-1;y>=0;y--){
         if(getColorStatic(image,X,y)!=0){
             return y;
@@ -1394,7 +1367,7 @@ double surface_fitting_test::calculateCameraPoint(double mediumRI, double yExit,
     double radiusGlassCuvette = 9.0;
     double n2 = 1.523;
     double n3 = 1;
-    double y1 = radiusGlassCuvette+yExit-inputSurface.height()/2;
+    double y1 = radiusGlassCuvette+yExit-mmPerPixelInReco*inputSurface.height()/2;
     double y2 = 2.0;
     double y3 = 73.0;
     double x1 = y1*qTan(angleExit);
@@ -1413,7 +1386,7 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
     myPoint.xEntry = xEntry;
     QImage thinSurface = thinOutSurface(surface);
     if(getFirstValueFromTop(surface,xEntry-1)!=0 && getFirstValueFromTop(surface,xEntry)!=0 && getFirstValueFromTop(surface,xEntry+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
-        QVector<double> slope = getPolySlopeAtEntryQt(surface,xEntry);
+        QVector<double> slope = getPolySlopeAtEntryQt(surface,xEntry,fitOrder,true);
         myPoint.gammaEntry = getExitAngle(slope[0],mediaRI,samplRi);
         myPoint.yEntry = slope[1];
         QVector<double> rayVector = parameterizeFromAngle(xEntry,myPoint.yEntry, myPoint.gammaEntry);
@@ -1519,6 +1492,7 @@ QVector<double> surface_fitting_test::generateRefractionPattern(QImage surface, 
     QVector<double> pattern = QVector<double>(surface.width());
     for(int x = 0; x<surface.width(); x++){
         QVector<double> exit = getBackExitPointAndAngle(surface,x,mediaRI,sampleRI);
+        //qDebug()<<"Ausgangspunkt aus Probe in mm"<<mmPerPixelInReco*exit[1];
         pattern[x]=calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
         if(exit[2]==-1||exit[2]==1){
             qDebug()<<"Strahl wurde totalreflektiert beim pattern-gen";
@@ -1562,16 +1536,16 @@ double surface_fitting_test::getFittingSampleRI(QImage surface, int xEntry, doub
     if(getFirstValueFromTop(surface,xEntry)==0){
         return 999;
     }
-    double entrySlope = getPolySlopeAtEntryQt(surface,xEntry)[0];
+    double entrySlope = getPolySlopeAtEntryQt(surface,xEntry,fitOrder,true)[0];
     if(entrySlope==0){
-        double exitSlope = getPolySlopeAtExit(surface,xEntry)[0];
+        double exitSlope = getPolySlopeAtExitQt(surface,xEntry,fitOrder,true)[0];
         if(exitSlope==0){
             return 777;
         }
     }
     while(currTestRi <=expectedSampleRI+riRange){
         QVector<double> exit = getBackExitPointAndAngle(surface,xEntry,mediaRI,currTestRi);
-
+        //qDebug()<<"Ausgangpunkt aus Probe in mm "<<mmPerPixelInReco*exit[1];
         if(exit[2]>-1&&exit[2]<1){
             double cameraPoint =calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
             if(std::abs(cameraPoint-xCameraPoint)<smallestDeviation){
@@ -1586,6 +1560,43 @@ double surface_fitting_test::getFittingSampleRI(QImage surface, int xEntry, doub
         return fittingRi;
     }
     return 333;
+}
+
+void surface_fitting_test::saveInfoFile(QString name, QString savepath)
+{
+    QTime now = QTime::currentTime();
+    if(!savepath.endsWith("/")){
+        savepath.append("/");
+    }
+    QString timestring = "hh_mm";
+    name.append("_").append(now.toString(timestring));
+    QFile file(savepath + name + ".txt");
+    if(!file.open(QIODevice::ReadWrite)) {
+        qCritical()<<"Could not open file!";
+        qCritical()<<file.errorString();
+        return;
+    }
+
+    qInfo()<<"Writing Info file...";
+
+    QTextStream stream(&file);
+
+    stream << "Das input Surface wurde geladen aus: "<<inputPathSurface<<"\n";
+    stream << "Die Ordnung des Fits für die Oberfläche betrug: "<<fitOrder<<"\n";
+    stream << "Die Anzahl der seitlich berücksichtigten Nachbarn für den Fit betrug: "<<slopeSigmaMT<<"\n";
+    stream << "Für die Arithmetischen Mittel wurden so viele Folgepunkte berücksichtigt: "<<arithMiddleSigma<<"\n";
+    stream << "Der Brechungsindex der Probe war: " << riSample <<"\n";
+    stream << "Der Brechungsindex des Mediums war: " <<riMedium<<"\n";
+    stream << "Anzahl der simulierten Projektionen: " << numberOfProjections <<"\n";
+    if(useArrayFire){
+        stream << "Es wurde ArrayFire für die Rotation der Bilder verwendent. \n";
+    }
+    if(useMultiThreading){
+        stream << "Es wurde Multithreading für die Propagation der Strahlen verwendent. \n";
+    }
+    //stream << "" << <<"\n";
+
+    file.close();
 }
 
 
@@ -1607,25 +1618,12 @@ void surface_fitting_test::getMomentsList(QVector<QVector<double> > moments)
     qDebug()<<"Liste der Momente erhalten. Erster Wert: "<<momentsList[0];
 }
 
-
-void surface_fitting_test::on_pushButton_getSlopeAt_clicked()
-{
-    QVector<double> slope{0,0};
-    slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),ui->spinBox_slopeSigma->value());
-    if(slope[1]!=999){
-        qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
-        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
-    }
-}
-
-
 void surface_fitting_test::on_spinBox_aScan_valueChanged(int arg1)
 {
     arithMiddleSigma = ui->spinBox_ariMiddleSigma->value();
     on_spinBox_rotateDisplayImageBy_valueChanged(ui->spinBox_rotateDisplayImageBy->value());
     QVector<double> slope{0,0};
-    slope = getSlopeAtEntry(bufferImg,arg1,ui->spinBox_slopeSigma->value());
-    QVector<double> polySlope = getPolySlopeAtEntryQt(bufferImg,arg1);
+    QVector<double> polySlope = getPolySlopeAtEntryQt(bufferImg,arg1,fitOrder, true);
     if(slope[1]!=999){
         //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
         qDebug()<<"polySlope at"<<ui->spinBox_aScan->value()<<"is: "<< polySlope;
@@ -1636,10 +1634,10 @@ void surface_fitting_test::on_spinBox_aScan_valueChanged(int arg1)
 void surface_fitting_test::on_spinBox_slopeSigma_valueChanged(int arg1)
 {    
     QVector<double> slope{0,0};
-    slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),arg1);
+    slope = getPolySlopeAtEntryQt(bufferImg,ui->spinBox_aScan->value(),fitOrder, true);
     if(slope[1]!=999){
         //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
-        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
+        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[1],slope[0],20);
     }
     slopeSigmaMT = arg1;
 }
@@ -1696,7 +1694,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                     bScan = propagateOctRayThroughHisto(rotatedHistoImages[q],bScan,double(x),newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry,newRotatedEntryPoints[q][x].lengthEntry,riMedium,riSample);
                 }
 
-                double gray = 0.3*propagateRayThroughHisto(rotatedHistoImages[q],x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry,newRotatedEntryPoints[q][x].lengthEntry);
+                double gray = 0.15*propagateRayThroughHisto(rotatedHistoImages[q],x,newRotatedEntryPoints[q][x].yEntry,newRotatedEntryPoints[q][x].gammaEntry,newRotatedEntryPoints[q][x].lengthEntry);
                 if(gray>65535){
                     qDebug()<<"Aufaddierter Grauwert zu groß für 16bit: "<<q<<x<<gray;
                     gray = 65535;
@@ -1746,7 +1744,7 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
                 if(getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x-1)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[q],x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
                                         //polyfit option einfügen!!
                     if(usePolyFit){
-                        QVector<double> slopeVec = getPolySlopeAtEntryQt(rotatedSurfaces[q],x);
+                        QVector<double> slopeVec = getPolySlopeAtEntryQt(rotatedSurfaces[q],x,fitOrder,true);
                         newRotatedEntryPoints[q][x].slopeEntry = slopeVec[0];
                         newRotatedEntryPoints[q][x].yEntry = slopeVec[1];
                         newRotatedEntryPoints[q][x].gammaEntry = getExitAngle(newRotatedEntryPoints[q][x].slopeEntry,riMedium,riSample);
@@ -1887,6 +1885,10 @@ void surface_fitting_test::on_pushButton_createSinogram_clicked()
     if(createTransmission){
         transmissionHisto.save(inputPathSurface+"\\"+nameRI+nrOfProjString+"_transmissionFromHisto.png");
     }
+    if(!continuousSimulation){
+        saveInfoFile(nameRI+nrOfProjString+"_sinogramFromHisto.png",inputPathSurface);
+    }
+
     qDebug()<<"jo, fertig mit "<< nameRI+nrOfProjString+"_sinogramFromHisto.png"<<externalCorrectionTimer.elapsed();
 }
 
@@ -1896,10 +1898,10 @@ void surface_fitting_test::on_doubleSpinBox_riMedium_valueChanged(double arg1)
     QVector<double> slope{0,0};
     riMedium = arg1;
     riMediumMT = riMedium;
-    slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),ui->spinBox_slopeSigma->value());
+    slope = getPolySlopeAtEntry(bufferImg,ui->spinBox_aScan->value());
     if(slope[1]!=999){
         //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
-        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
+        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[1],slope[0],20);
     }
 }
 
@@ -1909,10 +1911,10 @@ void surface_fitting_test::on_doubleSpinBox_riSample_valueChanged(double arg1)
     QVector<double> slope{0,0};
     riSample = arg1;
     riSampleMT = riSample;
-    slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),ui->spinBox_slopeSigma->value());
+    slope = getPolySlopeAtEntry(bufferImg,ui->spinBox_aScan->value());
     if(slope[1]!=999){
         //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
-        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
+        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[1],slope[0],20);
     }
 }
 
@@ -1941,58 +1943,58 @@ void surface_fitting_test::on_spinBox_rotateDisplayImageBy_valueChanged(int arg1
         }
     }
     //on_spinBox_aScan_valueChanged(ui->spinBox_aScan->value());
-    QVector<double> slopevec = getPolySlopeAtEntryQt(bufferImg,ui->spinBox_aScan->value());
+    QVector<double> slopevec = getPolySlopeAtEntryQt(bufferImg,ui->spinBox_aScan->value(),fitOrder,true);
     drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slopevec[1],slopevec[0],20);
 }
 
 
-void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion veraltet
-{
-    QElapsedTimer reTimer;
-    reTimer.start();
-    QImage rearrangedSinogram = QImage(sinogramHisto.size(),QImage::Format_Grayscale16);
-    rearrangedSinogramFails = QImage(sinogramHisto.size(),QImage::Format_RGB16);
-    rearrangedSinogramFails.fill(0);
-    rearrangedSinogram.fill(0);
-    int deltaProj;
-    if(!QDir(inputPathSurface).exists()){
-        QDir().mkdir(inputPathSurface);
-    }
-    QVector<QVector<int>> travelledOnBackside;
-    for(int p = 0; p<numberOfProjections;p++){
-        qDebug()<<"Correction started for: "<<p<<reTimer.elapsed();
-        quint16 *dstArrSino = (quint16*)(rearrangedSinogram.bits()+p*rearrangedSinogram.bytesPerLine());
-        for(int x = 0; x<inputSurface.width();x++){
-            if(newRotatedEntryPoints[p][x].yEntry!=0){
-                rearrangedSinogramFails.setPixelColor(x,p,Qt::white);
-                if(newRotatedEntryPoints[p][x].gammaEntry==0){                                                          //bei senkrechten Strahlen wird nichts verschoben!
-                    quint16 *dstSinoStraight = (quint16*)(sinogramHisto.bits()+p*sinogramHisto.bytesPerLine());
-                    rearrangedSinogramFails.setPixelColor(x,p,Qt::gray);
-                    dstArrSino[x]=dstSinoStraight[x];
-                }else if(newRotatedEntryPoints[p][x].gammaEntry<0){            // Probe wird im Uhrzeigersinn gedreht, um Partner zu finden; x wird größer
-                    QVector<double> newPos;
-                    double theta = 0;
-                    deltaProj = 0;
-                    double gamma = 0;
-                    bool searchDone = false;
-                    while(searchDone==false){
-                        deltaProj++;
-                        theta = (2*M_PI/double(numberOfProjections))*deltaProj;
-                        newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},theta,true);
-                        if(deltaProj>150){
-                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkRed);
-                            qDebug()<<"Punkt ist weggelaufen :"<<p<<x;
-                            dstArrSino[x] = 0;
-                            searchDone = true;
-                        }
-                        else if(riMedium<riSample && std::abs(linInterpolation(int(newPos[0]),int(newPos[0])+1,getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])),getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])+1),newPos[0])-newPos[1])>5){
-                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
-                            //qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
-                            qDebug()<<newRotatedEntryPoints[p][x].gammaEntry;
-                            travelledOnBackside.append({p,x});
-                            dstArrSino[x] = 0;
-                            searchDone = true;
-                        }
+//void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion veraltet
+//{
+//    QElapsedTimer reTimer;
+//    reTimer.start();
+//    QImage rearrangedSinogram = QImage(sinogramHisto.size(),QImage::Format_Grayscale16);
+//    rearrangedSinogramFails = QImage(sinogramHisto.size(),QImage::Format_RGB16);
+//    rearrangedSinogramFails.fill(0);
+//    rearrangedSinogram.fill(0);
+//    int deltaProj;
+//    if(!QDir(inputPathSurface).exists()){
+//        QDir().mkdir(inputPathSurface);
+//    }
+//    QVector<QVector<int>> travelledOnBackside;
+//    for(int p = 0; p<numberOfProjections;p++){
+//        qDebug()<<"Correction started for: "<<p<<reTimer.elapsed();
+//        quint16 *dstArrSino = (quint16*)(rearrangedSinogram.bits()+p*rearrangedSinogram.bytesPerLine());
+//        for(int x = 0; x<inputSurface.width();x++){
+//            if(newRotatedEntryPoints[p][x].yEntry!=0){
+//                rearrangedSinogramFails.setPixelColor(x,p,Qt::white);
+//                if(newRotatedEntryPoints[p][x].gammaEntry==0){                                                          //bei senkrechten Strahlen wird nichts verschoben!
+//                    quint16 *dstSinoStraight = (quint16*)(sinogramHisto.bits()+p*sinogramHisto.bytesPerLine());
+//                    rearrangedSinogramFails.setPixelColor(x,p,Qt::gray);
+//                    dstArrSino[x]=dstSinoStraight[x];
+//                }else if(newRotatedEntryPoints[p][x].gammaEntry<0){            // Probe wird im Uhrzeigersinn gedreht, um Partner zu finden; x wird größer
+//                    QVector<double> newPos;
+//                    double theta = 0;
+//                    deltaProj = 0;
+//                    double gamma = 0;
+//                    bool searchDone = false;
+//                    while(searchDone==false){
+//                        deltaProj++;
+//                        theta = (2*M_PI/double(numberOfProjections))*deltaProj;
+//                        newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},theta,true);
+//                        if(deltaProj>150){
+//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkRed);
+//                            qDebug()<<"Punkt ist weggelaufen :"<<p<<x;
+//                            dstArrSino[x] = 0;
+//                            searchDone = true;
+//                        }
+//                        else if(riMedium<riSample && std::abs(linInterpolation(int(newPos[0]),int(newPos[0])+1,getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])),getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])+1),newPos[0])-newPos[1])>5){
+//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
+//                            //qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
+//                            qDebug()<<newRotatedEntryPoints[p][x].gammaEntry;
+//                            travelledOnBackside.append({p,x});
+//                            dstArrSino[x] = 0;
+//                            searchDone = true;
+//                        }
 //                        else if(std::abs(getFirstValueFromBottom(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],std::round(newPos[0]))-newPos[1])<5){
 //                            rearrangedSinogramFails.setPixelColor(x,p,Qt::magenta);
 //                            reOrderSucceded = true;
@@ -2001,50 +2003,50 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 //                            dstArrSino[x] = 0;
 //                            searchDone = true;
 //                        }
-                        else if(newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].lengthEntry!=0&&newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].lengthEntry!=0){
-                            gamma = linInterpolation(int(newPos[0]),int(newPos[0])+1,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].gammaEntry,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].gammaEntry,newPos[0]);
-                            if(theta >= std::abs(gamma)){
-                                newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},-gamma,true);
-                                double value = bilinInterpolFromSinogram(sinogramHisto,newPos[0],-gamma,p,deltaProj);
-                                if(value<0){
-                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::cyan);
-                                    qDebug()<<"Wert war unter Null bei: "<<p<<x;
-                                    value=0;
-                                }else if(value>65000){
-                                    value=65000;
-                                    qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
-                                }else{
-                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::darkBlue);
-                                }
-                                dstArrSino[x] = value;
-                                searchDone = true;
-                            }
-                        }
-                    }
-                }else if(newRotatedEntryPoints[p][x].gammaEntry>0){
-                    QVector<double> newPos;
-                    double theta = 0;
-                    deltaProj = 0;
-                    double gamma = 0;
-                    bool searchDone = false;
-                    while(searchDone==false){
-                        deltaProj--;
-                        theta = (2*M_PI/double(numberOfProjections))*deltaProj;
-                        newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},theta,true);
-                        if(std::abs(deltaProj)>150){
-                            qDebug()<<"Punkt ist weggelaufen :"<<p<<x;
-                            dstArrSino[x] = 0;
-                            rearrangedSinogramFails.setPixelColor(x,p,Qt::red);
-                            searchDone = true;
-                        }
-                        else if(riMedium<riSample&&std::abs(linInterpolation(int(newPos[0]),int(newPos[0])+1,getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])),getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])+1),newPos[0])-newPos[1])>5){
-                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
-                            //qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
-                            qDebug()<<newRotatedEntryPoints[p][x].yEntry;
-                            travelledOnBackside.append({p,x});
-                            dstArrSino[x] = 0;
-                            searchDone = true;
-                        }
+//                        else if(newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].lengthEntry!=0&&newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].lengthEntry!=0){
+//                            gamma = linInterpolation(int(newPos[0]),int(newPos[0])+1,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].gammaEntry,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].gammaEntry,newPos[0]);
+//                            if(theta >= std::abs(gamma)){
+//                                newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},-gamma,true);
+//                                double value = bilinInterpolFromSinogram(sinogramHisto,newPos[0],-gamma,p,deltaProj);
+//                                if(value<0){
+//                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::cyan);
+//                                    qDebug()<<"Wert war unter Null bei: "<<p<<x;
+//                                    value=0;
+//                                }else if(value>65000){
+//                                    value=65000;
+//                                    qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
+//                                }else{
+//                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::darkBlue);
+//                                }
+//                                dstArrSino[x] = value;
+//                                searchDone = true;
+//                            }
+//                        }
+//                    }
+//                }else if(newRotatedEntryPoints[p][x].gammaEntry>0){
+//                    QVector<double> newPos;
+//                    double theta = 0;
+//                    deltaProj = 0;
+//                    double gamma = 0;
+//                    bool searchDone = false;
+//                    while(searchDone==false){
+//                        deltaProj--;
+//                        theta = (2*M_PI/double(numberOfProjections))*deltaProj;
+//                        newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},theta,true);
+//                        if(std::abs(deltaProj)>150){
+//                            qDebug()<<"Punkt ist weggelaufen :"<<p<<x;
+//                            dstArrSino[x] = 0;
+//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::red);
+//                            searchDone = true;
+//                        }
+//                        else if(riMedium<riSample&&std::abs(linInterpolation(int(newPos[0]),int(newPos[0])+1,getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])),getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])+1),newPos[0])-newPos[1])>5){
+//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
+//                            //qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
+//                            qDebug()<<newRotatedEntryPoints[p][x].yEntry;
+//                            travelledOnBackside.append({p,x});
+//                            dstArrSino[x] = 0;
+//                            searchDone = true;
+//                        }
 //                        else if(std::abs(getFirstValueFromBottom(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],std::round(newPos[0]))-newPos[1])<5){
 //                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
 //                            qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
@@ -2053,52 +2055,52 @@ void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion ve
 //                            dstArrSino[x] = 0;
 //                            searchDone = true;
 //                        }
-                        else if(newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].lengthEntry!=0&&newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].lengthEntry!=0){
-                            gamma = linInterpolation(int(newPos[0]),int(newPos[0])+1,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].gammaEntry,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].gammaEntry,newPos[0]);
-                            if(std::abs(theta) >= std::abs(gamma)){
-                                newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},-gamma,true);
-                                double value = bilinInterpolFromSinogram(sinogramHisto,newPos[0],-gamma,p,deltaProj);
-                                if(value<0){
-                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::darkCyan);
-                                    qDebug()<<"Wert war unter Null bei: "<<p<<x;
-                                    value=0;
-                                }else if(value>65000){
-                                    value=65000;
-                                    qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
-                                }else{
-                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::green);
-                                }
-                                dstArrSino[x] = value;
-                                searchDone = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    } //Am Ende noch die letzten beiden Zeilen aus der ersten kopieren
-    quint16 *dstArrSinoBot = (quint16*)(rearrangedSinogram.bits()+numberOfProjections*rearrangedSinogram.bytesPerLine());
-    quint16 *dstArrSinoTop = (quint16*)(rearrangedSinogram.bits());
-    for(int x = 0;x<sinogramHisto.width();x++){
-        dstArrSinoBot[x] = dstArrSinoTop[x];
-    }
-    quint16 *dstArrSinoBot2 = (quint16*)(rearrangedSinogram.bits()+(numberOfProjections+1)*rearrangedSinogram.bytesPerLine());
-    for(int x = 0;x<sinogramHisto.width();x++){
-        dstArrSinoBot2[x] = dstArrSinoTop[x];
-    }    
-    for(int r = 0;r<travelledOnBackside.size();r++){ // Wenn Punkte bei Korrektur auf die Rückseite gewandert sind, wird hier der Wert "von der anderen Seite" kopiert
-        int fromX = inputHisto.width()-travelledOnBackside[r][1]-1;
-        quint16 *dstArrSinoSource = (quint16*)(rearrangedSinogram.bits()+((travelledOnBackside[r][0]+numberOfProjections/2)%numberOfProjections)*rearrangedSinogram.bytesPerLine());
-        quint16 *dstArrSinoFailed = (quint16*)(rearrangedSinogram.bits()+(travelledOnBackside[r][0])*rearrangedSinogram.bytesPerLine());
-        if(dstArrSinoSource[fromX]!=0){
-            rearrangedSinogramFails.setPixelColor(travelledOnBackside[r][1],travelledOnBackside[r][0],Qt::yellow);
-            dstArrSinoFailed[travelledOnBackside[r][1]] = dstArrSinoSource[fromX];
-        }
-    }
-    rearrangedSinogramFails.save(inputPathSurface+"\\"+nameRI+nrOfProjString+"_sinogramRearrangedFails.png");
-    rearrangedSinogram.save(inputPathSurface+"\\"+nameRI+nrOfProjString+"_sinogramRearranged.png");
-    rearrangedSinogramFails.fill(0);
-}
+//                        else if(newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].lengthEntry!=0&&newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].lengthEntry!=0){
+//                            gamma = linInterpolation(int(newPos[0]),int(newPos[0])+1,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].gammaEntry,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].gammaEntry,newPos[0]);
+//                            if(std::abs(theta) >= std::abs(gamma)){
+//                                newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},-gamma,true);
+//                                double value = bilinInterpolFromSinogram(sinogramHisto,newPos[0],-gamma,p,deltaProj);
+//                                if(value<0){
+//                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::darkCyan);
+//                                    qDebug()<<"Wert war unter Null bei: "<<p<<x;
+//                                    value=0;
+//                                }else if(value>65000){
+//                                    value=65000;
+//                                    qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
+//                                }else{
+//                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::green);
+//                                }
+//                                dstArrSino[x] = value;
+//                                searchDone = true;
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//    } //Am Ende noch die letzten beiden Zeilen aus der ersten kopieren
+//    quint16 *dstArrSinoBot = (quint16*)(rearrangedSinogram.bits()+numberOfProjections*rearrangedSinogram.bytesPerLine());
+//    quint16 *dstArrSinoTop = (quint16*)(rearrangedSinogram.bits());
+//    for(int x = 0;x<sinogramHisto.width();x++){
+//        dstArrSinoBot[x] = dstArrSinoTop[x];
+//    }
+//    quint16 *dstArrSinoBot2 = (quint16*)(rearrangedSinogram.bits()+(numberOfProjections+1)*rearrangedSinogram.bytesPerLine());
+//    for(int x = 0;x<sinogramHisto.width();x++){
+//        dstArrSinoBot2[x] = dstArrSinoTop[x];
+//    }
+//    for(int r = 0;r<travelledOnBackside.size();r++){ // Wenn Punkte bei Korrektur auf die Rückseite gewandert sind, wird hier der Wert "von der anderen Seite" kopiert
+//        int fromX = inputHisto.width()-travelledOnBackside[r][1]-1;
+//        quint16 *dstArrSinoSource = (quint16*)(rearrangedSinogram.bits()+((travelledOnBackside[r][0]+numberOfProjections/2)%numberOfProjections)*rearrangedSinogram.bytesPerLine());
+//        quint16 *dstArrSinoFailed = (quint16*)(rearrangedSinogram.bits()+(travelledOnBackside[r][0])*rearrangedSinogram.bytesPerLine());
+//        if(dstArrSinoSource[fromX]!=0){
+//            rearrangedSinogramFails.setPixelColor(travelledOnBackside[r][1],travelledOnBackside[r][0],Qt::yellow);
+//            dstArrSinoFailed[travelledOnBackside[r][1]] = dstArrSinoSource[fromX];
+//        }
+//    }
+//    rearrangedSinogramFails.save(inputPathSurface+"\\"+nameRI+nrOfProjString+"_sinogramRearrangedFails.png");
+//    rearrangedSinogram.save(inputPathSurface+"\\"+nameRI+nrOfProjString+"_sinogramRearranged.png");
+//    rearrangedSinogramFails.fill(0);
+//}
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
@@ -2107,7 +2109,7 @@ void surface_fitting_test::on_pushButton_testMath_clicked()
 //    momentsList = makeListRelativeAndScaled(momentsList);
 //    QVector<double> fittedRI(momentsList.size());
 //    for (int x = 2; x<momentsList.size()-2;x++){
-//        fittedRI[x] = getFittingSampleRI(rotatedSurfaces[0],x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.0002,0.1);
+//        fittedRI[x] = getFittingSampleRI(inputSurface,x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.0002,0.1);
 //        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
 //    }
 //    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
@@ -2121,26 +2123,26 @@ void surface_fitting_test::on_pushButton_testMath_clicked()
 //    }
 //    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
 
+    //    QElapsedTimer time;
+    //    time.start();
+//    poly = new polyFit();
 //    QElapsedTimer time;
 //    time.start();
-    poly = new polyFit();
-        QElapsedTimer time;
-        time.start();
-    qDebug()<<"Slope ohne Qt: "<<getPolySlopeAtEntry(inputSurface,ui->spinBox_aScan->value())<<time.nsecsElapsed();
-    qDebug()<<"Slope mit Qt: "<<getPolySlopeAtEntryQt(inputSurface,ui->spinBox_aScan->value())<<time.nsecsElapsed();
-//    for(int k = 0; k<rotatedSurfaces.size();k++){
-//        for(int i = 0; i<rotatedSurfaces[0].width();i++){
-//            if(newRotatedEntryPoints[k][i].yEntry!=0){
-//                qDebug()<<"Nummer des AScans: "<<i;
-//                getPolySlopeAtEntry(rotatedSurfaces[k],newRotatedEntryPoints[k],i);
-//            }
-//        }
-//    }
-//    getPolySlopeAtEntry(rotatedSurfaces[0],ui->spinBox_aScan->value());
-//    getPolySlopeAtExit(rotatedSurfaces[0],ui->spinBox_aScan->value());
-//    qDebug()<<"Fit hat gedauert: "<<time.elapsed();
-//    generateRefractionPattern(inputSurface,riMedium,riSample);
+    for(int i = 0; i<inputSurface.width();i++){
+        if(getFirstValueFromTop(inputSurface,i)!=0){
+            qDebug()<<"Nummer des AScans: "<<i;
+            qDebug()<<"Fit mit Gewichtung:"<<getPolySlopeAtEntryQt(inputSurface,i,fitOrder,true);
+            qDebug()<<"Fit ohne Gewichtung:"<<getPolySlopeAtEntryQt(inputSurface,i,fitOrder,false);
+        }
+    }
+//    qDebug()<<"Fit zweiter ordnung hat gedauert: "<<time.elapsed();
 
+    //    getPolySlopeAtEntry(rotatedSurfaces[0],ui->spinBox_aScan->value());
+    //    getPolySlopeAtExit(rotatedSurfaces[0],ui->spinBox_aScan->value());
+    //    qDebug()<<"Fit hat gedauert: "<<time.elapsed();
+        //generateRefractionPattern(inputSurface,riMedium,riSample);
+
+    //saveInfoFile("dings",inputPathSurface);
 }
 
 void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
@@ -2233,6 +2235,8 @@ void surface_fitting_test::on_pushButton_rotateSurfaceAndHisto_clicked()
 
 void surface_fitting_test::on_pushButton_continousSimulation_clicked()
 {
+    continuousSimulation = true;
+    saveInfoFile("KontiSimulation",inputPathSurface);
     while(riMedium<=ui->doubleSpinBox_endRiMedium->value()){
         on_pushButton_createSinogram_clicked();
         on_pushButton_newCorrection_clicked();
@@ -2395,6 +2399,7 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
     }else{
         qDebug()<<"Number of Surface and Sinograms did not match";
     }
+    saveInfoFile("Korrektur_von_externem_Stack",savePath);
 }
 
 void surface_fitting_test::on_checkBox_useArrayFire_stateChanged(int arg1)
@@ -2492,10 +2497,10 @@ void surface_fitting_test::on_spinBox_ariMiddleSigma_valueChanged(int arg1)
     arithMiddleSigma = arg1;
     slopePxlNoMT = arg1;
     on_spinBox_rotateDisplayImageBy_valueChanged(ui->spinBox_rotateDisplayImageBy->value());
-    slope = getSlopeAtEntry(bufferImg,ui->spinBox_aScan->value(),ui->spinBox_slopeSigma->value());
+    slope = getPolySlopeAtEntry(bufferImg,ui->spinBox_aScan->value());
     if(slope[1]!=999){
         //qDebug()<<"slope at"<<ui->spinBox_aScan->value()<<"is: "<< slope;
-        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[0],slope[1],20);
+        drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slope[1],slope[0],20);
     }
 }
 
@@ -2503,4 +2508,11 @@ void surface_fitting_test::on_checkBox_usePolyFit_stateChanged(int arg1)
 {
     usePolyFit = arg1;
     usePoly = arg1;
+}
+
+void surface_fitting_test::on_spinBox_fitOrder_valueChanged(int arg1)
+{
+    fitOrder = arg1;
+    fitOrderMT = arg1;
+    on_spinBox_aScan_valueChanged(ui->spinBox_aScan->value());
 }

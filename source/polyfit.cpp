@@ -1081,6 +1081,19 @@ QVector<QVector<double> > polyFit::makeQtMat(int rows, int cols)
     return matReturn;
 }
 
+void polyFit::displayPolyQt(size_t k)
+{
+    cout << "y = ";
+    for (size_t i=0; i<(k+1); i++) {
+        cout << "A" << i;
+        if (i>0) cout << "X";
+        if (i>1) cout << "^" << i;
+        if (i<k) cout << " + ";
+    }
+    cout << endl << endl;
+
+}
+
 QVector<double> polyFit::getSlopeStatic(QVector<double> xVec, QVector<double> yVec, double **Weights)
 {
     size_t k = 2;                                    // Polynomial order
@@ -1130,10 +1143,10 @@ QVector<double> polyFit::getSlopeStatic(QVector<double> xVec, QVector<double> yV
     return {coefbeta[1],coefbeta[0]};
 }
 
-QVector<double> polyFit::getSlopeStaticQt(QVector<double> xVec, QVector<double> yVec, QVector<QVector<double> > Weights)
+QVector<double> polyFit::getSlopeStaticQt(QVector<double> xVec, QVector<double> yVec, QVector<QVector<double> > Weights, int order)
 {
     //alles mit fixed Inter kann ich ignorieren!!
-    size_t k = 2;                                           //Poly-order
+    size_t k = order;                                           //Poly-order
     size_t n = xVec.size();                                    // Number of data points (adjusted later)
     size_t nstar = n - 1;                                // equal to n (fixed intercept) or (n-1) not fixed
     QVector<double> coefbeta=QVector<double>(k+1);                            // Coefficients of the polynomial

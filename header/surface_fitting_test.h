@@ -13,6 +13,8 @@
 #include <QElapsedTimer>
 #include <QRandomGenerator>
 #include <QFileDialog>
+#include <QFile>
+#include <QTextStream>
 #include <arrayfire.h>
 #include "header/threadboi.h"
 #include <QtConcurrent>
@@ -20,6 +22,8 @@
 #include <QFutureWatcher>
 #include <header/refraction.h>
 #include <header/polyfit.h>
+#include <iostream>
+#include <QTime>
 
 
 
@@ -85,11 +89,10 @@ public:
     static int slopeSigmaMT;
     static int slopePxlNoMT;
     static bool usePoly;
+    static int fitOrderMT;
 
 private slots:
     void on_pushButton_loadAndDisplay_clicked();
-
-    void on_pushButton_getSlopeAt_clicked();
 
     void on_spinBox_aScan_valueChanged(int arg1);
 
@@ -103,7 +106,7 @@ private slots:
 
     void on_spinBox_rotateDisplayImageBy_valueChanged(int arg1);
 
-    void on_pushButton_correctSinogram_clicked();
+//    void on_pushButton_correctSinogram_clicked();
 
     void on_pushButton_testMath_clicked();
 
@@ -151,6 +154,8 @@ private slots:
 
     void on_checkBox_usePolyFit_stateChanged(int arg1);
 
+    void on_spinBox_fitOrder_valueChanged(int arg1);
+
 private:
     Ui::surface_fitting_test *ui;
     refraction *ref;
@@ -179,6 +184,8 @@ private:
     bool useArrayFire = 1;
     bool useMultiThreading = 1;
     bool usePolyFit = 1;
+    bool continuousSimulation = false;
+    int fitOrder = 0;
     bool correctingPmtSinogram = true;
     signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
@@ -249,15 +256,15 @@ private:
     static int newPropagateRayMultiThreaded(newSurfaceInfo &surfaceList);
 
     QVector<double> getPolySlopeAtEntry(QImage &surface, int X);
-    QVector<double> getPolySlopeAtEntryQt(QImage &surface, int X);
+    QVector<double> getPolySlopeAtEntryQt(QImage &surface, int X, int order, bool applyWeighting);
 
     QVector<double> getPolySlopeAtExit(QImage &surface, int X);
-    QVector<double> getPolySlopeAtExitQt(QImage &surface, int X);
+    QVector<double> getPolySlopeAtExitQt(QImage &surface, int X, int order, bool applyWeighting);
 
 
-    static QVector<double> getPolySlopeAtEntryStatic(QImage &surface, int X);
+    static QVector<double> getPolySlopeAtEntryStatic(QImage &surface, int X, int order, bool applyWeighting);
     static int getFirstValueFromTopStatic(QImage &image, int X);
-    static int getFirstValueFromBottomStatic(QImage image, int X);
+    static int getFirstValueFromBottomStatic(QImage &image, int X);
     static int getColorStatic(QImage &image, int x, int y);
     static QVector<int> fillVectorWithAscanStatic(QImage image, int X);
     static double getArithmicMiddleStatic(QVector<int> vec, int base, int integral);
@@ -276,6 +283,7 @@ private:
     QVector<QVector<double>> makeListRelativeAndScaled(QVector<QVector<double>> moments);
     double getFittingSampleRI(QImage thinSurface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset);
 
+    void saveInfoFile(QString name, QString savepath);
 public slots:
     void newNumber(QString name, int number, QString threadID);
     void fillInThinnedSurface(QImage surface, int i);
