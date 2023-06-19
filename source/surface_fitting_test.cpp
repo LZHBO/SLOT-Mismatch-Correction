@@ -2104,37 +2104,37 @@ void surface_fitting_test::on_spinBox_rotateDisplayImageBy_valueChanged(int arg1
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-    //getPolySlopeAtEntry(rotatedSurfaces[0],newRotatedEntryPoints[0][100]);
-//    determineTeleError(momentsList);
-//    momentsList = makeListRelativeAndScaled(momentsList);
-//    QVector<double> fittedRI(momentsList.size());
-//    for (int x = 2; x<momentsList.size()-2;x++){
-//        fittedRI[x] = getFittingSampleRI(inputSurface,x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.0002,0.1);
-//        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
-//    }
-//    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
-//    fittedRI.removeAll(333);
-//    fittedRI.removeAll(777);
-//    fittedRI.removeAll(0);
-//    qDebug()<<fittedRI;
-//    double sum=0;
-//    for(int i = 0; i<fittedRI.size();i++){
-//        sum = sum + fittedRI[i];
-//    }
-//    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
+
+    determineTeleError(momentsList);
+    momentsList = makeListRelativeAndScaled(momentsList);
+    QVector<double> fittedRI(momentsList.size());
+    for (int x = 2; x<momentsList.size()-2;x++){
+        fittedRI[x] = getFittingSampleRI(inputSurface,x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.0002,0.1);
+        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
+    }
+    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
+    fittedRI.removeAll(333);
+    fittedRI.removeAll(777);
+    fittedRI.removeAll(0);
+    qDebug()<<fittedRI;
+    double sum=0;
+    for(int i = 0; i<fittedRI.size();i++){
+        sum = sum + fittedRI[i];
+    }
+    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
 
     //    QElapsedTimer time;
     //    time.start();
 //    poly = new polyFit();
 //    QElapsedTimer time;
 //    time.start();
-    for(int i = 0; i<inputSurface.width();i++){
-        if(getFirstValueFromTop(inputSurface,i)!=0){
-            qDebug()<<"Nummer des AScans: "<<i;
-            qDebug()<<"Fit mit Gewichtung:"<<getPolySlopeAtEntryQt(inputSurface,i,fitOrder,true);
-            qDebug()<<"Fit ohne Gewichtung:"<<getPolySlopeAtEntryQt(inputSurface,i,fitOrder,false);
-        }
-    }
+//    for(int i = 0; i<inputSurface.width();i++){
+//        if(getFirstValueFromTop(inputSurface,i)!=0){
+//            qDebug()<<"Nummer des AScans: "<<i;
+//            qDebug()<<"Fit mit Gewichtung:"<<getPolySlopeAtEntryQt(inputSurface,i,fitOrder,true);
+//            qDebug()<<"Fit ohne Gewichtung:"<<getPolySlopeAtEntryQt(inputSurface,i,fitOrder,false);
+//        }
+//    }
 //    qDebug()<<"Fit zweiter ordnung hat gedauert: "<<time.elapsed();
 
     //    getPolySlopeAtEntry(rotatedSurfaces[0],ui->spinBox_aScan->value());
@@ -2382,6 +2382,7 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
     QString savePath = saveDir.absolutePath();
     savePath.append("/");
     qDebug()<<savePath;
+    saveInfoFile("Korrektur_von_externem_Stack",savePath);
     if(fileListInfoSinogram.size()==fileListInfoSurface.size()){
         int stackSize = fileListInfoSinogram.size();
         for ( int i = 0; i<stackSize;i++){
@@ -2399,7 +2400,6 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
     }else{
         qDebug()<<"Number of Surface and Sinograms did not match";
     }
-    saveInfoFile("Korrektur_von_externem_Stack",savePath);
 }
 
 void surface_fitting_test::on_checkBox_useArrayFire_stateChanged(int arg1)

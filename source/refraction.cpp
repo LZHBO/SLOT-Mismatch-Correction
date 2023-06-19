@@ -15,7 +15,7 @@ refraction::~refraction()
 
 void refraction::on_pushButton_browse_clicked()
 {
-    QString file_name = QFileDialog::getOpenFileName(this,tr("Open File"), "F:/mSLOT/MSQ_D1", tr("Images (*.png *.xpm *.jpg *.tif *.tiff"));
+    QString file_name = QFileDialog::getOpenFileName(this,tr("Open File"), "F:/mSLOT/MSQ_C3", tr("Images (*.bmp *.png *.xpm *.jpg *.tif *.tiff"));
 
     if(!file_name.isEmpty()){
         QMessageBox::information(this, "...", file_name);
@@ -45,7 +45,7 @@ void refraction::on_pushButton_browse_clicked()
 
 void refraction::on_pushButton_loadStack_clicked()
 {
-    const QString folderpathGaussList = QFileDialog::getExistingDirectory(this,tr("Gauss Folder"),"F:/mSLOT/MSQ_D1");
+    const QString folderpathGaussList = QFileDialog::getExistingDirectory(this,tr("Gauss Folder"),"F:/mSLOT/MSQ_C3");
     QDir dir(folderpathGaussList);
     gaussList = dir.entryInfoList();
     while(!gaussList.first().absoluteFilePath().endsWith(".jpg")){

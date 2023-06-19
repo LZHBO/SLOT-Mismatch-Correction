@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\SLP\SheppLogan_Phantom_large_funfeck_surface</string>
+    <string>F:\mSLOT\MSQ_C3\</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -177,7 +177,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.420000000000000</double>
+    <double>1.330000000000000</double>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_riSample">
@@ -199,7 +199,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.420000000000000</double>
+    <double>1.415000000000000</double>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_createSinogram">
@@ -296,7 +296,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\SLP\SheppLogan_Phantom_large</string>
+    <string>C:\Users\o.hill\Pictures\siemens\siemends-large</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">
@@ -811,7 +811,7 @@
     <number>0</number>
    </property>
    <property name="value">
-    <number>1</number>
+    <number>2</number>
    </property>
   </widget>
   <widget class="QCheckBox" name="checkBox_usePolyFit">
@@ -843,7 +843,7 @@
     <number>1</number>
    </property>
    <property name="value">
-    <number>2</number>
+    <number>3</number>
    </property>
   </widget>
   <widget class="QLabel" name="label_13">
