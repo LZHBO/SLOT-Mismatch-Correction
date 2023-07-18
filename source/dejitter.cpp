@@ -64,6 +64,16 @@ QVector<float> dejitter::makeCurveFromList(QVector<QVector<float>> list, int hei
     return curve;
 }
 
+QVector<float> dejitter::makeCurveFromSimulatedSinogram(QImage sinolation)
+{
+    int height = sinolation.height();
+    QVector<float> dejitterList = QVector<float>(height);
+    for(int i = 0; i<height; i++){
+        dejitterList[i] = getBoarderCoordinate(sinolation,i);
+    }
+    return dejitterList;
+}
+
 float dejitter::getPointAlongLine(float x1, float y1, float x2, float y2, int y)
 {
     float m = (x2-x1)/(y2-y1);
@@ -158,34 +168,39 @@ QImage dejitter::moveVerticalPixelsBy(QImage image, int offset, int row)
 QImage dejitter::dejitterSinogram(QImage sinogram, QVector<float> offsetList, bool pmt)
 {
     QImage dejiSino = sinogram;
-    if(pmt){
-        dejiSino.fill(0);
-    }else{
-        dejiSino.fill(60000);
+    quint16 *dstSinogramEdge = (quint16*)(sinogram.bits()+(sinogram.height()-1)*sinogram.bytesPerLine());
+    quint32 forAvg = 0;
+    for(int x =0; x<5;x++){
+        forAvg = forAvg + dstSinogramEdge[x];
     }
+    qDebug()<<"Der Average Grauwert ist: "<<forAvg;
+    dejiSino.fill(forAvg/5);
+//    if(pmt){//stattdessen den durchschnittswert der unteren rechten 5x5 pixel nehmen
+//        dejiSino.fill(0);
+//    }else{
+//        dejiSino.fill(65535);
+//    }
     for(int y = 0; y<sinogram.height();y++){
         quint16 *dstDeji = (quint16*)(dejiSino.bits()+y*dejiSino.bytesPerLine());
         quint16 *dstSinogram = (quint16*)(sinogram.bits()+y*sinogram.bytesPerLine());
-        if(offsetList[y]==0){
+        if(offsetList[y]==float(0)){
             for(int x = 0; x<sinogram.width();x++){
                 dstDeji[x]=dstSinogram[x];
             }
-        }else if(offsetList[y]>1){
+        }else if(offsetList[y]>0){
             float factorX1=int(offsetList[y])+1-offsetList[y];
             float factorX2=offsetList[y]-int(offsetList[y]);
-            for(int x = 0; x < dejiSino.width()-offsetList[y]; x++){
-                dstDeji[x+int(offsetList[y])]=dstSinogram[x]*factorX1+dstDeji[x+int(offsetList[y])];
-                dstDeji[x+1+int(offsetList[y])]=dstSinogram[x]*factorX2+dstDeji[x+1+int(offsetList[y])];
+            for(int x = int(offsetList[y]+1); x < dejiSino.width(); x++){
+                dstDeji[x] = dstSinogram[x-int(offsetList[y])]*factorX1 + dstSinogram[x-int(offsetList[y])-1]*factorX2;
             }
         }else{
             float factorX1 = std::abs(offsetList[y]-int(offsetList[y]));
             float factorX2 = std::abs(int(offsetList[y])-1-offsetList[y]);
-            for(int x = -int(offsetList[y])+1;x<dejiSino.width();x++){
-                dstDeji[x+int(offsetList[y])-1]=dstSinogram[x]*factorX1+dstDeji[x+int(offsetList[y])-1];
-                dstDeji[x+int(offsetList[y])]=dstSinogram[x]*factorX2+dstDeji[x+int(offsetList[y])];
+            for(int x = 0;x<dejiSino.width()+int(offsetList[y]-1);x++){
+                dstDeji[x] = dstSinogram[x-int(offsetList[y])+1]*factorX1 + dstSinogram[x-int(offsetList[y])]*factorX2;
             }
         }
-        }
+    }
     return dejiSino;
 }
 
@@ -205,24 +220,21 @@ void dejitter::on_pushButton_loadMap_clicked()
 
 void dejitter::on_pushButton_testMath_clicked()
 {
-    QImage looser;
-    looser.load("C:/Users/o.hill/Pictures/oct_handling/surface_steepness/sinogram_PMT/sinogram_PMT0001");
-    readFile("C:/Users/o.hill/Pictures/oct_handling/surface_steepness/sinogram_PMT/sinogram_PMT0001");
-    QVector<float> offset = makeCurveFromList(curveCoordinates,looser.height());
-    for(int y = 0; y<looser.height(); y++){
-        looser = moveVerticalPixelsBy(looser,int(offset[y]),y);
+
+    //QVector<float> offsetSource = makeCurveFromList(curveCoordinates,sinolation.height());
+    QVector<float> offsetSource = makeCurveFromSimulatedSinogram(sinolation);
+    offsetMap = QVector<float>(sinolation.height());
+    for(int y = 0;y<sinolation.height();y++){
+        float boarder = getBoarderCoordinate(matchingSinogram,y);
+        offsetMap[y]=offsetSource[y]-boarder;
     }
-    looser.save("C:/Users/o.hill/Pictures/oct_handling/surface_steepness/sinogram_PMT/sinogram_PMT0001_offset.png");
-    looser.save("C:/Users/o.hill/Pictures/oct_handling/surface_steepness/sinogram_PMT/sinogram_PMT0001_offset.tif");
-    int k = 8;
-    testfunction(&k,&k,&looser);
+    qDebug()<<offsetMap;
 }
 
 void dejitter::on_pushButton_loadMatchingPD_clicked()
 {
     QString inputPathMatchingSinogram = ui->lineEdit_matchingSinogram->text();
     inputPathMatchingSinogram.replace("\\","/",Qt::CaseSensitivity());
-    QImage matchingSinogram;
     if(!matchingSinogram.load(inputPathMatchingSinogram)){
         qDebug()<<"Failed to load Matching Sinogram. Check file path!";
     }
@@ -294,3 +306,12 @@ void dejitter::on_pushButton_dejitterStack_clicked()
     }
 }
 
+
+void dejitter::on_pushButton_loadSinolation_clicked()
+{
+    QString inputPathSinolation = ui->lineEdit_sinolation->text();
+    inputPathSinolation.replace("\\","/",Qt::CaseSensitivity());
+    if(!sinolation.load(inputPathSinolation)){
+        qDebug()<<"Failed to load Matching Sinogram. Check file path!";
+    }
+}

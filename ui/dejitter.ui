@@ -29,8 +29,8 @@
   <widget class="QPushButton" name="pushButton_loadPdStack">
    <property name="geometry">
     <rect>
-     <x>200</x>
-     <y>150</y>
+     <x>190</x>
+     <y>350</y>
      <width>171</width>
      <height>41</height>
     </rect>
@@ -55,8 +55,8 @@
   <widget class="QPushButton" name="pushButton_loadPmtStack">
    <property name="geometry">
     <rect>
-     <x>200</x>
-     <y>200</y>
+     <x>190</x>
+     <y>400</y>
      <width>171</width>
      <height>41</height>
     </rect>
@@ -81,8 +81,8 @@
   <widget class="Line" name="line">
    <property name="geometry">
     <rect>
-     <x>200</x>
-     <y>130</y>
+     <x>190</x>
+     <y>330</y>
      <width>181</width>
      <height>16</height>
     </rect>
@@ -101,7 +101,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\oct_handling\dejitter\</string>
+    <string>G:\mSLOT\NP10-30-025-helix\2023_07_12\new-dejitter-method\jitter-pd\AVG_reslice-5_output\jitter-pd-map.txt</string>
    </property>
   </widget>
   <widget class="QLineEdit" name="lineEdit_matchingSinogram">
@@ -114,20 +114,46 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\oct_handling\dejitter\</string>
+    <string>G:\mSLOT\NP10-30-025-helix\2023_07_12\new-dejitter-method\jitter-pd\AVG_reslice-5_output\jitter-pd</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_dejitterStack">
    <property name="geometry">
     <rect>
-     <x>200</x>
-     <y>250</y>
+     <x>190</x>
+     <y>450</y>
      <width>171</width>
      <height>41</height>
     </rect>
    </property>
    <property name="text">
     <string>Dejitter Stack</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_loadSinolation">
+   <property name="geometry">
+    <rect>
+     <x>200</x>
+     <y>140</y>
+     <width>171</width>
+     <height>51</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Load Simulated Sinogram</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEdit_sinolation">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>150</y>
+     <width>191</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>G:\mSLOT\NP10-30-025-helix\2023_07_12\new-dejitter-method\jitter-pd\AVG_reslice-5_output\dejitter-pd-simulation</string>
    </property>
   </widget>
  </widget>

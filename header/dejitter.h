@@ -40,11 +40,15 @@ private slots:
 
     void on_pushButton_dejitterStack_clicked();
 
+    void on_pushButton_loadSinolation_clicked();
+
 private:
 
     Ui::dejitter *ui;
     QImage transmissionSinogram;
     QImage fluorescenceSinogram;
+    QImage sinolation;
+    QImage matchingSinogram;
     QVector<QVector<float>> curveCoordinates;
     QVector<QImage> transmissionStack;
     QVector<QImage> fluorescenceStack;
@@ -57,6 +61,8 @@ private:
     void readFile(QString path);
 
     QVector<float> makeCurveFromList(QVector<QVector<float>> list, int height);
+
+    QVector<float> makeCurveFromSimulatedSinogram(QImage sinolation);
 
     float getPointAlongLine(float x1, float y1, float x2, float y2, int y);
 
