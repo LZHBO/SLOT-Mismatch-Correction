@@ -42,6 +42,8 @@ private slots:
 
     void on_pushButton_loadSinolation_clicked();
 
+    void on_pushButton_dejitterStackSinolation_clicked();
+
 private:
 
     Ui::dejitter *ui;

@@ -29,7 +29,7 @@
   <widget class="QPushButton" name="pushButton_loadPdStack">
    <property name="geometry">
     <rect>
-     <x>190</x>
+     <x>290</x>
      <y>350</y>
      <width>171</width>
      <height>41</height>
@@ -55,7 +55,7 @@
   <widget class="QPushButton" name="pushButton_loadPmtStack">
    <property name="geometry">
     <rect>
-     <x>190</x>
+     <x>290</x>
      <y>400</y>
      <width>171</width>
      <height>41</height>
@@ -81,7 +81,7 @@
   <widget class="Line" name="line">
    <property name="geometry">
     <rect>
-     <x>190</x>
+     <x>290</x>
      <y>330</y>
      <width>181</width>
      <height>16</height>
@@ -127,7 +127,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Dejitter Stack</string>
+    <string>Dejitter Stack with Map</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadSinolation">
@@ -154,6 +154,19 @@
    </property>
    <property name="text">
     <string>G:\mSLOT\NP10-30-025-helix\2023_07_12\new-dejitter-method\jitter-pd\AVG_reslice-5_output\dejitter-pd-simulation</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_dejitterStackSinolation">
+   <property name="geometry">
+    <rect>
+     <x>390</x>
+     <y>450</y>
+     <width>161</width>
+     <height>41</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Dejitter Stack with Sinolation</string>
    </property>
   </widget>
  </widget>

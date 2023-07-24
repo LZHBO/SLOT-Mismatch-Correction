@@ -156,6 +156,8 @@ private slots:
 
     void on_spinBox_fitOrder_valueChanged(int arg1);
 
+    void on_pushButton_choosePdSinogram_clicked();
+
 private:
     Ui::surface_fitting_test *ui;
     refraction *ref;
@@ -165,7 +167,8 @@ private:
     QString inputPathHisto;
     QString inputPathSinogram;
     QFileInfoList fileListInfoSurface;
-    QFileInfoList fileListInfoSinogram;
+    QFileInfoList fileListInfoSinogramPMT;
+    QFileInfoList fileListInfoSinogramPD;
     QString nameRI;
     double riMedium;
     double riSample;
@@ -221,6 +224,7 @@ private:
     QImage thinOutSurface(QImage image);
     QImage noiseBScan(QImage bScan, double noiseFactor);
     QImage correctExternalSinogram(QImage sinogram, QImage surface, QString surfacePath, double mediumRI, double sampleRI);
+    bool correctExternalSinogramPDandPMT(QImage &sinogramPD, QImage &sinogramPMT, QImage &rearSinoPD, QImage &rearSinoPMT, QImage &surface, QString surfacePath, double mediumRI, double sampleRI);
     void drawAndDisplaySlope(QImage image,int X, int Y, double slope, int width);
     /**
      * gibt Winkelabweichung von senkrechter Gerade in radiant wieder, input ist als Steigung deltaY/deltaX

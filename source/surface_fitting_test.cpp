@@ -372,7 +372,7 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
         //Strahl durch die "Projektion" propagieren
         for(int x = 1;x<surface.width();x++){
             newRotatedEntryPoints[k][x].xEntry = x;
-            if(getFirstValueFromTop(rotatedSurfacesThinnedOut[k],x-1)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[k],x)!=0 && getFirstValueFromTop(rotatedSurfacesThinnedOut[k],x+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
+            if(newRotatedEntryPoints[k][x-1].yEntry!=0 && newRotatedEntryPoints[k][x].yEntry!=0!=0 && newRotatedEntryPoints[k][x+1].yEntry!=0){ //dadurch werden die äußersten Punkte ignoriert
                 QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[k],x,slopeSigma);
                 double exitAngle = getExitAngle(bufVec[1],mediumRI,sampleRI);
                 newRotatedEntryPoints[k][x].gammaEntry = exitAngle;
@@ -394,18 +394,18 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                     }
                     if(success == false){
                         //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<k<<x;
-                        if(getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
-                            QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X));
+                        if(newRotatedEntryPoints[k][X].yEntry!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
+                            QVector<double> surfaceVector = parameterizeFromPoints(X, newRotatedEntryPoints[k][X].yEntry, X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X));
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                            if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
+                            if(intersection[1]>=newRotatedEntryPoints[k][X].yEntry&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
                                 //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
                                 newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
                                 success = true;
                             }
                         }
                         while(success == false && X>=x){
-                            QVector<double> surfaceVector = parameterizeFromPoints(X-1, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X-1), X, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X));
+                            QVector<double> surfaceVector = parameterizeFromPoints(X-1, newRotatedEntryPoints[k][X-1].yEntry, X, newRotatedEntryPoints[k][X].yEntry);
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X-1&&intersection[0]<X){
@@ -434,17 +434,17 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                     if(success == false){
                         //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<k<<x;
                         if(getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
-                            QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X), X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X));
+                            QVector<double> surfaceVector = parameterizeFromPoints(X, newRotatedEntryPoints[k][X].yEntry, X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X));
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                            if(intersection[1]>=getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
+                            if(intersection[1]>=newRotatedEntryPoints[k][X].yEntry&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
                                 //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
                                 newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
                                 success = true;
                             }
                         }
                         while(success == false && X<=x){
-                            QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X), X+1, getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X+1));
+                            QVector<double> surfaceVector = parameterizeFromPoints(X, newRotatedEntryPoints[k][X].yEntry, X+1, newRotatedEntryPoints[k][X+1].yEntry);
                             QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
                             QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                             if(intersection[0]>=X&&intersection[0]<X+1){
@@ -482,11 +482,8 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
     for(int p = 0; p<numberOfAngles;p++){
         quint16 *dstArrSino = (quint16*)(rearrangedExternalSinogram.bits()+p*rearrangedExternalSinogram.bytesPerLine());
         for(int x = 0; x<surface.width();x++){
+            quint16 *dstSinoStraight = (quint16*)(sinogram.bits()+p*sinogram.bytesPerLine());
             if(newRotatedEntryPoints[p][x].yEntry!=0){
-                if(!correctingPmtSinogram){
-                    quint16 *dstSinoStraight = (quint16*)(sinogram.bits()+p*sinogram.bytesPerLine());
-                    dstArrSino[x]=dstSinoStraight[x];
-                }
                 if(newRotatedEntryPoints[p][x].gammaEntry==0){                                                  //bei senkrechten Strahlen wird nichts verschoben!
                     quint16 *dstSinoStraight = (quint16*)(sinogram.bits()+p*sinogram.bytesPerLine());
                     dstArrSino[x]=dstSinoStraight[x];
@@ -496,27 +493,34 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         double deltaProj = deltaTheta*double(numberOfAngles)/(2*M_PI);
                         QVector<double> buf = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(surface.width()/2),double(surface.height()/2)},deltaTheta,true);
                         double absNewX = buf[0];
-                        long double value = newBilinInterpolFromSinogram(sinogram,absNewX,double(p)+rotateClockwise*deltaProj);
-                        if(accountForReflection==true){
-                            int newP = std::round(p+deltaProj);
-                            newP = (newP+numberOfAngles)%numberOfAngles;
-                            value = value/getTransmissionGrade(mediumRI,sampleRI,newRotatedEntryPoints[newP][std::round(absNewX)]); // muss noch auf neues Struct umgeschrieben werden ... hier müsste eigentlich der Winkel vom Partner angegeben werden!! Deswegen zu hell
+                        if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-2].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+2].yEntry!=0){
+                            long double value = newBilinInterpolFromSinogram(sinogram,absNewX,double(p)+rotateClockwise*deltaProj);
+                            if(accountForReflection==true){
+                                int newP = std::round(p+deltaProj);
+                                newP = (newP+numberOfAngles)%numberOfAngles;
+                                value = value/getTransmissionGrade(mediumRI,sampleRI,newRotatedEntryPoints[newP][std::round(absNewX)]); // muss noch auf neues Struct umgeschrieben werden ... hier müsste eigentlich der Winkel vom Partner angegeben werden!! Deswegen zu hell
+                            }
+                            if(value<0){
+                                qDebug()<<"Wert war unter Null bei: "<<p<<x;
+                                value=0;
+                            }else if(value>65000){
+                                value=65000;
+                                qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
+                            }
+                            //qDebug()<<"crash after line 462";
+                            dstArrSino[x] = std::round(value);
+                        }else{
+                            dstArrSino[x] = dstSinoStraight[x];
                         }
-                        if(value<0){
-                            qDebug()<<"Wert war unter Null bei: "<<p<<x;
-                            value=0;
-                        }else if(value>65000){
-                            value=65000;
-                            qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
-                        }
-                        //qDebug()<<"crash after line 462";
-                        dstArrSino[x] = std::round(value);
                     }else{
                         travelledOnBackside.append({p,x});
+                        dstArrSino[x] = dstSinoStraight[x];
                         //rearrangedSinogramFails.setPixelColor(x,p,Qt::red);
                     }
                 }
 
+            }else{
+                dstArrSino[x] = dstSinoStraight[x];
             }
         }
     } //Am Ende noch die letzten beiden Zeilen aus der ersten kopieren
@@ -545,6 +549,296 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
     qDebug()<<"Sinogram fertig sortiert!"<<externalCorrectionTimer.elapsed();
     return rearrangedExternalSinogram;
 }
+
+bool surface_fitting_test::correctExternalSinogramPDandPMT(QImage &sinogramPD, QImage &sinogramPMT, QImage &rearSinoPD, QImage &rearSinoPMT, QImage &surface, QString surfacePath, double mediumRI, double sampleRI)
+{
+    riMediumMT = mediumRI;
+    riSampleMT = sampleRI;
+    QElapsedTimer externalCorrectionTimer;
+    externalCorrectionTimer.start();
+    int slopeSigma = ui->spinBox_slopeSigma->value();
+    slopeSigmaMT = ui->spinBox_slopeSigma->value();
+    int numberOfAngles = sinogramPMT.height()-2;
+    rotatedSurfaces = QVector<QImage>(numberOfAngles);
+    rotatedSurfacesThinnedOut = QVector<QImage>(numberOfAngles);
+    newRotatedEntryPoints = QVector<QVector<entryPoint>>(numberOfAngles);
+    QVector<surfaceInfo> surfaceList;
+    QVector<newSurfaceInfo> newSurfaceList;
+    if(useArrayFire){
+        rotatedSurfaces = makeRotatedImageStack(surfacePath, numberOfAngles);
+        rotatedSurfacesThinnedOut = rotatedSurfaces;
+    }
+    if(useMultiThreading){
+        QtConcurrent::blockingMap(rotatedSurfacesThinnedOut,&threadBoi::thinOutSurfaceThreaded);
+        for(int k = 0;k<numberOfAngles;k++){
+            newRotatedEntryPoints[k]=QVector<entryPoint>(rotatedSurfacesThinnedOut[0].width());
+        }
+        qDebug()<<"Struct wird erstellt"<<externalCorrectionTimer.restart();
+        newSurfaceList = makeNewStructVector(rotatedSurfacesThinnedOut,rotatedSurfaces,newRotatedEntryPoints);
+        qDebug()<<"Struct wurde erstellt"<<externalCorrectionTimer.restart();
+        QtConcurrent::blockingMap(newSurfaceList,&surface_fitting_test::newPropagateRayMultiThreaded);
+        qDebug()<<"Strahlen wurden MT propagiert"<<externalCorrectionTimer.restart();
+        for(int k=0; k<newSurfaceList.size();k++){
+            newRotatedEntryPoints[k] = newSurfaceList[k].ePoints;
+        }
+        qDebug()<<"Werte wurden kopiert"<<externalCorrectionTimer.restart();
+    }else{
+    qDebug()<<"Single Threading gestartet für ray propagation"<<externalCorrectionTimer.restart();
+    for(int k = 0;k<numberOfAngles;k++){
+        if(!useArrayFire){
+            QVector<double>rotatedPoint=QVector<double>(2);
+            double rotateBy = (2*M_PI/double(numberOfAngles))*k;
+            rotatedSurfaces[k] = QImage(surface.size(),QImage::Format_Grayscale8);
+            rotatedSurfaces[k].fill(0);
+            for(int x = 0;x<surface.width();x++){
+                for(int y = 0;y<surface.height();y++){
+                    if(getColor(surface,x,y)!=0){
+                        rotatedPoint=rotateImagePointTo({double(x),double(y)},{double(surface.width()/2.0),double(surface.height()/2.0)},rotateClockwise*rotateBy,true);
+                        int xRound = std::round(rotatedPoint[0]);
+                        int yRound = std::round(rotatedPoint[1]);
+                        for(int xGauss = xRound-2;xGauss<=xRound+2;xGauss++){
+                            for(int yGauss = yRound-2;yGauss<=yRound+2;yGauss++){
+                                int newInt = getColor(rotatedSurfaces[k],xGauss,yGauss) + int(200.0*getValueForGaussDistribution(rotatedPoint[0],rotatedPoint[1],xGauss,yGauss,1));
+                                if(newInt>255){
+                                    newInt=255;
+                                    qDebug()<<"Grauwert zu hoch";
+                                }
+                                quint8 *dstRotSurface = (quint8*)(rotatedSurfaces[k].bits()+yGauss*rotatedSurfaces[k].bytesPerLine());
+                                dstRotSurface[xGauss] = newInt;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if(!useMultiThreading){
+            rotatedSurfacesThinnedOut[k]=thinOutSurface(rotatedSurfaces[k]);
+        }
+        newRotatedEntryPoints[k] = QVector<entryPoint>(surface.width());
+        newRotatedEntryPoints[k][0]={0,0,0,0,0};
+        newRotatedEntryPoints[k][0].xEntry = 0;
+        //Strahl durch die "Projektion" propagieren
+        for(int x = 1;x<surface.width();x++){
+            newRotatedEntryPoints[k][x].xEntry = x;
+            if(newRotatedEntryPoints[k][x-1].yEntry!=0 && newRotatedEntryPoints[k][x].yEntry!=0!=0 && newRotatedEntryPoints[k][x+1].yEntry!=0){ //dadurch werden die äußersten Punkte ignoriert
+                QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[k],x,slopeSigma);
+                double exitAngle = getExitAngle(bufVec[1],mediumRI,sampleRI);
+                newRotatedEntryPoints[k][x].gammaEntry = exitAngle;
+                newRotatedEntryPoints[k][x].slopeEntry = bufVec[1];
+                newRotatedEntryPoints[k][x].yEntry = bufVec[0];
+                if(exitAngle>=0&&exitAngle<1.0){  //Strahl wird nach rechts abgelenkt
+                    int X=x;
+                    bool success = false;
+                    while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X+1)>0){
+                        QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X), X+1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X+1));
+                        QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                        QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                        if(intersection[0]>=X&&intersection[0]<X+1){
+                            newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
+                            success = true;
+                        }else{
+                            X++;
+                        }
+                    }
+                    if(success == false){
+                        //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<k<<x;
+                        if(newRotatedEntryPoints[k][X].yEntry!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
+                            QVector<double> surfaceVector = parameterizeFromPoints(X, newRotatedEntryPoints[k][X].yEntry, X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X));
+                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                            QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                            if(intersection[1]>=newRotatedEntryPoints[k][X].yEntry&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
+                                //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                                newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
+                                success = true;
+                            }
+                        }
+                        while(success == false && X>=x){
+                            QVector<double> surfaceVector = parameterizeFromPoints(X-1, newRotatedEntryPoints[k][X-1].yEntry, X, newRotatedEntryPoints[k][X].yEntry);
+                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                            QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                            if(intersection[0]>=X-1&&intersection[0]<X){
+                                newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
+                                //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                                success = true;
+                            }else{
+                                X--;
+                            }
+                        }
+                    }
+                }else if(exitAngle<0&&exitAngle>-1.0){  //Strahl wird nach links abgelenkt
+                    int X=x;
+                    bool success = false;
+                    while(success == false && getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X-1) > 0){
+                        QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X), X-1, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X-1));
+                        QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                        QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                        if(intersection[0]<=X&&intersection[0]>X-1){
+                            newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
+                            success = true;
+                        }else{
+                            X--;
+                        }
+                    }
+                    if(success == false){
+                        //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<k<<x;
+                        if(getFirstValueFromTop(rotatedSurfacesThinnedOut[k],X)!=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
+                            QVector<double> surfaceVector = parameterizeFromPoints(X, newRotatedEntryPoints[k][X].yEntry, X, getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X));
+                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                            QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                            if(intersection[1]>=newRotatedEntryPoints[k][X].yEntry&&intersection[1]<=getFirstValueFromBottom(rotatedSurfacesThinnedOut[k],X)){
+                                //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                                newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
+                                success = true;
+                            }
+                        }
+                        while(success == false && X<=x){
+                            QVector<double> surfaceVector = parameterizeFromPoints(X, newRotatedEntryPoints[k][X].yEntry, X+1, newRotatedEntryPoints[k][X+1].yEntry);
+                            QVector<double> rayVector = parameterizeFromAngle(x,bufVec[0],exitAngle);
+                            QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
+                            if(intersection[0]>=X&&intersection[0]<X+1){
+                                newRotatedEntryPoints[k][x].lengthEntry = intersection[2];
+                                //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                                success = true;
+                            }else{
+                                X++;
+                            }
+                        }
+                    }
+                }else{
+                    //qDebug()<<"Strahl wurde total reflektiert!"<<k<<x;
+                }
+                // Wert in ein Sinogram malen
+
+                if(newRotatedEntryPoints[k][x].lengthEntry < 0){
+                    newRotatedEntryPoints[k][x].lengthEntry = 0;
+                }
+
+            }
+        }
+        qDebug()<<"Rays propagated for Input Surface "<<k<<"of "<<numberOfAngles<<", time: "<<externalCorrectionTimer.elapsed();
+    }
+    }
+    QElapsedTimer reTimer;
+    reTimer.start();
+//    if(correctingPmtSinogram){
+//        rearrangedExternalSinogramPMT.fill(0);
+//    }else{
+//        rearrangedExternalSinogram.fill(36000);
+//    }
+    quint16 *dstSinogramEdge = (quint16*)(sinogramPMT.bits()+(sinogramPMT.height()-1)*sinogramPMT.bytesPerLine());
+    quint32 forAvg = 0;
+    for(int x =0; x<5;x++){
+        forAvg = forAvg + dstSinogramEdge[x];
+    }
+    rearSinoPMT.fill(forAvg/5);
+    quint16 *dstSinogramEdgePD = (quint16*)(sinogramPD.bits()+(sinogramPD.height()-1)*sinogramPD.bytesPerLine());
+    forAvg = 0;
+    for(int x =0; x<5;x++){
+        forAvg = forAvg + dstSinogramEdgePD[x];
+    }
+    rearSinoPD.fill(forAvg/5);
+    QVector<QVector<int>> travelledOnBackside;
+    for(int p = 0; p<numberOfAngles;p++){
+        quint16 *dstArrSinoPMT = (quint16*)(rearSinoPMT.bits()+p*rearSinoPMT.bytesPerLine());
+        quint16 *dstArrSinoPD = (quint16*)(rearSinoPD.bits()+p*rearSinoPD.bytesPerLine());
+        for(int x = 0; x<surface.width();x++){
+            quint16 *dstSinoStraightPMT = (quint16*)(sinogramPMT.bits()+p*sinogramPMT.bytesPerLine());
+            quint16 *dstSinoStraightPD = (quint16*)(sinogramPD.bits()+p*sinogramPD.bytesPerLine());
+            if(newRotatedEntryPoints[p][x].yEntry!=0){
+                if(newRotatedEntryPoints[p][x].gammaEntry==0){
+                    dstArrSinoPMT[x]=dstSinoStraightPMT[x];
+                    dstArrSinoPD[x]=dstSinoStraightPD[x];
+                }else{
+                    double deltaTheta = getDeltaThetaForPartner(newRotatedEntryPoints[p][x].slopeEntry,mediumRI,sampleRI);
+                    if(deltaTheta!=999){
+                        double deltaProj = deltaTheta*double(numberOfAngles)/(2*M_PI);
+                        QVector<double> buf = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(surface.width()/2),double(surface.height()/2)},deltaTheta,true);
+                        double absNewX = buf[0];
+                        //SinoPMT stuff
+                        if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-2].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+2].yEntry!=0){
+                            long double valuePMT = newBilinInterpolFromSinogram(sinogramPMT,absNewX,double(p)+rotateClockwise*deltaProj);
+                            long double valuePD = dstSinoStraightPD[x];
+                            if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-10].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+10].yEntry!=0){
+                                valuePD = newBilinInterpolFromSinogram(sinogramPD,absNewX,double(p)+rotateClockwise*deltaProj);
+                            }
+                            if(accountForReflection==true){
+                                int newP = std::round(p+deltaProj);
+                                newP = (newP+numberOfAngles)%numberOfAngles;
+                                valuePMT = valuePMT/getTransmissionGrade(mediumRI,sampleRI,newRotatedEntryPoints[newP][std::round(absNewX)]); // muss noch auf neues Struct umgeschrieben werden ... hier müsste eigentlich der Winkel vom Partner angegeben werden!! Deswegen zu hell
+                                valuePD = valuePD/getTransmissionGrade(mediumRI,sampleRI,newRotatedEntryPoints[newP][std::round(absNewX)]);
+                            }
+                            if(valuePMT<0){
+                                qDebug()<<"Wert war unter Null bei: "<<p<<x;
+                                valuePMT=0;
+                            }else if(valuePMT>65000){
+                                valuePMT=65000;
+                                qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
+                            }
+                            if(valuePD<0){
+                                qDebug()<<"Wert war unter Null bei: "<<p<<x;
+                                valuePD=0;
+                            }else if(valuePD>65000){
+                                valuePD=65000;
+                                qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
+                            }
+                            //qDebug()<<"crash after line 462";
+                            dstArrSinoPMT[x] = std::round(valuePMT);
+                            dstArrSinoPD[x] = std::round(valuePD);
+                        }else{
+                            dstArrSinoPMT[x] = dstSinoStraightPMT[x];
+                            dstArrSinoPD[x]=dstSinoStraightPD[x];
+                        }
+                    }else{
+                        travelledOnBackside.append({p,x});
+                        dstArrSinoPMT[x] = dstSinoStraightPMT[x];
+                        dstArrSinoPD[x]=dstSinoStraightPD[x];
+                        //rearrangedSinogramFails.setPixelColor(x,p,Qt::red);
+                    }
+                }
+
+            }else{
+                dstArrSinoPMT[x] = dstSinoStraightPMT[x];
+                dstArrSinoPD[x]=dstSinoStraightPD[x];
+            }
+        }
+    } //Am Ende noch die letzten beiden Zeilen aus der ersten kopieren
+    quint16 *dstArrSinoBotPMT = (quint16*)(rearSinoPMT.bits()+numberOfAngles*rearSinoPMT.bytesPerLine());
+    quint16 *dstArrSinoBotPD = (quint16*)(rearSinoPD.bits()+numberOfAngles*rearSinoPD.bytesPerLine());
+    quint16 *dstArrSinoTopPMT = (quint16*)(rearSinoPMT.bits());
+    quint16 *dstArrSinoTopPD = (quint16*)(rearSinoPD.bits());
+    for(int x = 0;x<sinogramPMT.width();x++){
+        dstArrSinoBotPMT[x] = dstArrSinoTopPMT[x];
+        dstArrSinoBotPD[x] = dstArrSinoTopPD[x];
+    }
+    quint16 *dstArrSinoBotPMT2 = (quint16*)(rearSinoPMT.bits()+(numberOfAngles+1)*rearSinoPMT.bytesPerLine());
+    quint16 *dstArrSinoBotPD2 = (quint16*)(rearSinoPD.bits()+(numberOfAngles+1)*rearSinoPD.bytesPerLine());
+    for(int x = 0;x<sinogramPMT.width();x++){
+        dstArrSinoBotPMT2[x] = dstArrSinoTopPMT[x];
+        dstArrSinoBotPD2[x] = dstArrSinoTopPD[x];
+    }
+    for(int r = 0;r<travelledOnBackside.size();r++){ // Wenn Punkte bei Korrektur auf die Rückseite gewandert sind, wird hier der Wert "von der anderen Seite" kopiert
+        int fromX = sinogramPMT.width()-travelledOnBackside[r][1]-1;
+        quint16 *dstArrSinoSource = (quint16*)(rearSinoPMT.bits()+((travelledOnBackside[r][0]+numberOfAngles/2)%numberOfAngles)*rearSinoPMT.bytesPerLine());
+        quint16 *dstArrSinoFailed = (quint16*)(rearSinoPMT.bits()+(travelledOnBackside[r][0])*rearSinoPMT.bytesPerLine());
+        if(dstArrSinoSource[fromX]!=0){
+            //rearrangedSinogramFails.setPixelColor(travelledOnBackside[r][1],travelledOnBackside[r][0],Qt::yellow);
+            dstArrSinoFailed[travelledOnBackside[r][1]] = dstArrSinoSource[fromX];
+        }
+        quint16 *dstArrSinoSourcePD = (quint16*)(rearSinoPD.bits()+((travelledOnBackside[r][0]+numberOfAngles/2)%numberOfAngles)*rearSinoPD.bytesPerLine());
+        quint16 *dstArrSinoFailedPD = (quint16*)(rearSinoPD.bits()+(travelledOnBackside[r][0])*rearSinoPD.bytesPerLine());
+        if(dstArrSinoSourcePD[fromX]!=0){
+            //rearrangedSinogramFails.setPixelColor(travelledOnBackside[r][1],travelledOnBackside[r][0],Qt::yellow);
+            dstArrSinoFailedPD[travelledOnBackside[r][1]] = dstArrSinoSourcePD[fromX];
+        }
+    }
+
+    newRotatedEntryPoints.resize(0);
+    rotatedSurfacesThinnedOut.resize(0);
+    rotatedSurfaces.resize(0);
+    qDebug()<<"Sinogram fertig sortiert!"<<externalCorrectionTimer.elapsed();
+    return true;
+}
+
 
 void surface_fitting_test::drawAndDisplaySlope(QImage image, int X, int Y, double slope, int width)
 {
@@ -2352,7 +2646,7 @@ void surface_fitting_test::on_checkBox_accountForReflection_stateChanged(int arg
 
 void surface_fitting_test::on_pushButton_chooseSurfaceDirectory_clicked()
 {
-    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"E:/mSLOT/");
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
     QDir dir(folderpathSurfaceStack);
     fileListInfoSurface = dir.entryInfoList();
 
@@ -2364,35 +2658,72 @@ void surface_fitting_test::on_pushButton_chooseSurfaceDirectory_clicked()
 
 void surface_fitting_test::on_pushButton_ChooseSinogramDirectory_clicked()
 {
-    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"E:/mSLOT/");
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Sinogram PMT Folder"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
     QDir dir(folderpathSurfaceStack);
-    fileListInfoSinogram = dir.entryInfoList();
-    fileListInfoSinogram.removeFirst();
-    fileListInfoSinogram.removeFirst();
+    fileListInfoSinogramPMT = dir.entryInfoList();
+    fileListInfoSinogramPMT.removeFirst();
+    fileListInfoSinogramPMT.removeFirst();
 }
 
 
 void surface_fitting_test::on_pushButton_correctStack_clicked()
 {
+//    riMedium = ui->doubleSpinBox_riMedium->value();
+//    riSample = ui->doubleSpinBox_riSample->value();
+//    arithMiddleSigma = ui->spinBox_ariMiddleSigma->value();
+//    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"E:/mSLOT/");
+//    QDir saveDir(folderpathSave);
+//    QString savePath = saveDir.absolutePath();
+//    savePath.append("/");
+//    qDebug()<<savePath;
+//    saveInfoFile("Korrektur_von_externem_Stack",savePath);
+//    if(fileListInfoSinogramPMT.size()==fileListInfoSurface.size()){
+//        int stackSize = fileListInfoSinogramPMT.size();
+//        for ( int i = 0; i<stackSize;i++){
+//            QImage bufSinogramPMT, bufSurface, bufSinogramPD;
+//            if(bufSinogramPMT.load(fileListInfoSinogramPMT[i].absoluteFilePath())&&bufSurface.load(fileListInfoSurface[i].absoluteFilePath())){
+//                numberOfProjections = bufSinogramPMT.height()-2;
+//                QImage correctedSinogram = correctExternalSinogram(bufSinogramPMT,bufSurface, fileListInfoSurface[i].absoluteFilePath(),riMedium,riSample);
+//                QString name = "korrigiertesSinogram_";
+//                name.append(QString::number(i)).append(".png");
+//                correctedSinogram.save(savePath + name);
+//            }else{
+//                qDebug()<<"Loading images Failed!";
+//            }
+//        }
+//    }else{
+//        qDebug()<<"Number of Surface and Sinograms did not match";
+//    }
     riMedium = ui->doubleSpinBox_riMedium->value();
     riSample = ui->doubleSpinBox_riSample->value();
     arithMiddleSigma = ui->spinBox_ariMiddleSigma->value();
-    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"E:/mSLOT/");
-    QDir saveDir(folderpathSave);
-    QString savePath = saveDir.absolutePath();
-    savePath.append("/");
-    qDebug()<<savePath;
-    saveInfoFile("Korrektur_von_externem_Stack",savePath);
-    if(fileListInfoSinogram.size()==fileListInfoSurface.size()){
-        int stackSize = fileListInfoSinogram.size();
+    const QString folderpathSavePMT = QFileDialog::getExistingDirectory(this,tr("Save Folder for PMT"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
+    QDir saveDirPMT(folderpathSavePMT);
+    QString savePathPMT = saveDirPMT.absolutePath();
+    savePathPMT.append("/");
+    qDebug()<<savePathPMT;
+    const QString folderpathSavePD = QFileDialog::getExistingDirectory(this,tr("Save Folder for PD"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
+    QDir saveDirPD(folderpathSavePD);
+    QString savePathPD = saveDirPD.absolutePath();
+    savePathPD.append("/");
+    qDebug()<<savePathPD;
+    saveInfoFile("Korrektur_von_externem_Stack",savePathPMT);
+    if(fileListInfoSinogramPMT.size()==fileListInfoSurface.size()&&fileListInfoSurface.size()==fileListInfoSinogramPD.size()){
+        int stackSize = fileListInfoSinogramPMT.size();
         for ( int i = 0; i<stackSize;i++){
-            QImage bufSinogram, bufSurface;
-            if(bufSinogram.load(fileListInfoSinogram[i].absoluteFilePath())&&bufSurface.load(fileListInfoSurface[i].absoluteFilePath())){
-                numberOfProjections = bufSinogram.height()-2;
-                QImage correctedSinogram = correctExternalSinogram(bufSinogram,bufSurface, fileListInfoSurface[i].absoluteFilePath(),riMedium,riSample);
-                QString name = "korrigiertesSinogram_";
-                name.append(QString::number(i)).append(".png");
-                correctedSinogram.save(savePath + name);
+            QImage bufSinogramPMT, bufSurface, bufSinogramPD;
+            if(bufSinogramPMT.load(fileListInfoSinogramPMT[i].absoluteFilePath())&&bufSurface.load(fileListInfoSurface[i].absoluteFilePath())&&bufSinogramPD.load(fileListInfoSinogramPD[i].absoluteFilePath())){
+                numberOfProjections = bufSinogramPMT.height()-2;
+                QImage correctedSinogramPD = bufSinogramPD;
+                correctedSinogramPD.fill(0);
+                QImage correctedSinogramPMT = correctedSinogramPD;
+                correctExternalSinogramPDandPMT(bufSinogramPD,bufSinogramPMT,correctedSinogramPD,correctedSinogramPMT,bufSurface,fileListInfoSurface[i].absoluteFilePath(),riMedium,riSample);
+                QString namePMT = "korrigiertesSinogramPMT_";
+                QString namePD = "korrigiertesSinogramPD_";
+                namePMT.append(QString::number(i)).append(".png");
+                namePD.append(QString::number(i)).append(".png");
+                correctedSinogramPMT.save(savePathPMT + namePMT);
+                correctedSinogramPD.save(savePathPD + namePD);
             }else{
                 qDebug()<<"Loading images Failed!";
             }
@@ -2515,4 +2846,13 @@ void surface_fitting_test::on_spinBox_fitOrder_valueChanged(int arg1)
     fitOrder = arg1;
     fitOrderMT = arg1;
     on_spinBox_aScan_valueChanged(ui->spinBox_aScan->value());
+}
+
+void surface_fitting_test::on_pushButton_choosePdSinogram_clicked()
+{
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Sinogram PD Folder"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
+    QDir dir(folderpathSurfaceStack);
+    fileListInfoSinogramPD = dir.entryInfoList();
+    fileListInfoSinogramPD.removeFirst();
+    fileListInfoSinogramPD.removeFirst();
 }

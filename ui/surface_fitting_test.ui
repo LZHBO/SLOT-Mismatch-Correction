@@ -129,7 +129,7 @@
     <number>1</number>
    </property>
    <property name="value">
-    <number>15</number>
+    <number>20</number>
    </property>
   </widget>
   <widget class="QLabel" name="label_2">
@@ -561,7 +561,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Choose Sinogram Stack Directory</string>
+    <string>Choose PMT Sinogram Directory</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_correctStack">
@@ -570,7 +570,7 @@
      <x>1210</x>
      <y>120</y>
      <width>75</width>
-     <height>51</height>
+     <height>81</height>
     </rect>
    </property>
    <property name="text">
@@ -582,7 +582,7 @@
    <property name="geometry">
     <rect>
      <x>1040</x>
-     <y>180</y>
+     <y>210</y>
      <width>141</width>
      <height>17</height>
     </rect>
@@ -598,7 +598,7 @@
    <property name="geometry">
     <rect>
      <x>1020</x>
-     <y>240</y>
+     <y>270</y>
      <width>271</width>
      <height>16</height>
     </rect>
@@ -624,7 +624,7 @@
    <property name="geometry">
     <rect>
      <x>1060</x>
-     <y>250</y>
+     <y>280</y>
      <width>181</width>
      <height>16</height>
     </rect>
@@ -637,7 +637,7 @@
    <property name="geometry">
     <rect>
      <x>1190</x>
-     <y>280</y>
+     <y>310</y>
      <width>62</width>
      <height>22</height>
     </rect>
@@ -659,7 +659,7 @@
    <property name="geometry">
     <rect>
      <x>1070</x>
-     <y>280</y>
+     <y>310</y>
      <width>111</width>
      <height>16</height>
     </rect>
@@ -672,7 +672,7 @@
    <property name="geometry">
     <rect>
      <x>1190</x>
-     <y>310</y>
+     <y>340</y>
      <width>62</width>
      <height>22</height>
     </rect>
@@ -691,7 +691,7 @@
    <property name="geometry">
     <rect>
      <x>1090</x>
-     <y>310</y>
+     <y>340</y>
      <width>61</width>
      <height>16</height>
     </rect>
@@ -704,7 +704,7 @@
    <property name="geometry">
     <rect>
      <x>1070</x>
-     <y>340</y>
+     <y>370</y>
      <width>181</width>
      <height>41</height>
     </rect>
@@ -744,7 +744,7 @@
    <property name="geometry">
     <rect>
      <x>1160</x>
-     <y>180</y>
+     <y>210</y>
      <width>111</width>
      <height>17</height>
     </rect>
@@ -760,7 +760,7 @@
    <property name="geometry">
     <rect>
      <x>1040</x>
-     <y>220</y>
+     <y>250</y>
      <width>91</width>
      <height>17</height>
     </rect>
@@ -776,7 +776,7 @@
    <property name="geometry">
     <rect>
      <x>1160</x>
-     <y>220</y>
+     <y>250</y>
      <width>82</width>
      <height>17</height>
     </rect>
@@ -818,7 +818,7 @@
    <property name="geometry">
     <rect>
      <x>1040</x>
-     <y>200</y>
+     <y>230</y>
      <width>91</width>
      <height>17</height>
     </rect>
@@ -857,6 +857,19 @@
    </property>
    <property name="text">
     <string>Order of PolyFit</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_choosePdSinogram">
+   <property name="geometry">
+    <rect>
+     <x>1030</x>
+     <y>180</y>
+     <width>171</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Choose PD Sinogram Directory</string>
    </property>
   </widget>
  </widget>

@@ -238,13 +238,7 @@ void dejitter::on_pushButton_loadMatchingPD_clicked()
     if(!matchingSinogram.load(inputPathMatchingSinogram)){
         qDebug()<<"Failed to load Matching Sinogram. Check file path!";
     }
-    QVector<float> offsetSource = makeCurveFromList(curveCoordinates,matchingSinogram.height());
-    offsetMap = QVector<float>(matchingSinogram.height());
-    for(int y = 0;y<matchingSinogram.height();y++){
-        float boarder = getBoarderCoordinate(matchingSinogram,y);
-        offsetMap[y]=offsetSource[y]-boarder;
-    }
-    qDebug()<<offsetMap;
+
 //    for(int y = 0; y<matchingSinogram.height(); y++){
 //        matchingSinogram = moveVerticalPixelsBy(matchingSinogram,offsetMap[y],y);
 //    }
@@ -277,6 +271,13 @@ void dejitter::on_pushButton_loadPmtStack_clicked()
 
 void dejitter::on_pushButton_dejitterStack_clicked()
 {
+    QVector<float> offsetSource = makeCurveFromList(curveCoordinates,matchingSinogram.height());
+    offsetMap = QVector<float>(matchingSinogram.height());
+    for(int y = 0;y<matchingSinogram.height();y++){
+        float boarder = getBoarderCoordinate(matchingSinogram,y);
+        offsetMap[y]=offsetSource[y]-boarder;
+    }
+    qDebug()<<offsetMap;
     const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
     QDir saveDir(folderpathSave);
     QString savePath = saveDir.absolutePath();
@@ -314,4 +315,15 @@ void dejitter::on_pushButton_loadSinolation_clicked()
     if(!sinolation.load(inputPathSinolation)){
         qDebug()<<"Failed to load Matching Sinogram. Check file path!";
     }
+}
+
+void dejitter::on_pushButton_dejitterStackSinolation_clicked()
+{
+    QVector<float> offsetSource = makeCurveFromSimulatedSinogram(sinolation);
+    offsetMap = QVector<float>(sinolation.height());
+    for(int y = 0;y<sinolation.height();y++){
+        float boarder = getBoarderCoordinate(matchingSinogram,y);
+        offsetMap[y]=offsetSource[y]-boarder;
+    }
+    qDebug()<<offsetMap;
 }
