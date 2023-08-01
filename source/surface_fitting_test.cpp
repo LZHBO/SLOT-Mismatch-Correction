@@ -21,6 +21,7 @@ surface_fitting_test::surface_fitting_test(QWidget *parent) :
     slopePxlNoMT = ui->spinBox_ariMiddleSigma->value();
     fitOrder = ui->spinBox_fitOrder->value();
     fitOrderMT = fitOrder;
+    rotateClockwise = -1;
 }
 
 surface_fitting_test::~surface_fitting_test()
@@ -725,18 +726,18 @@ bool surface_fitting_test::correctExternalSinogramPDandPMT(QImage &sinogramPD, Q
 //    }else{
 //        rearrangedExternalSinogram.fill(36000);
 //    }
-    quint16 *dstSinogramEdge = (quint16*)(sinogramPMT.bits()+(sinogramPMT.height()-1)*sinogramPMT.bytesPerLine());
+    quint16 *dstSinogramEdge = (quint16*)(sinogramPMT.bits()+(sinogramPMT.height()-5)*sinogramPMT.bytesPerLine());
     quint32 forAvg = 0;
-    for(int x =0; x<5;x++){
+    for(int x =8; x<14;x++){
         forAvg = forAvg + dstSinogramEdge[x];
     }
-    rearSinoPMT.fill(forAvg/5);
-    quint16 *dstSinogramEdgePD = (quint16*)(sinogramPD.bits()+(sinogramPD.height()-1)*sinogramPD.bytesPerLine());
+    rearSinoPMT.fill(forAvg/6);
+    quint16 *dstSinogramEdgePD = (quint16*)(sinogramPD.bits()+(sinogramPD.height()-5)*sinogramPD.bytesPerLine());
     forAvg = 0;
-    for(int x =0; x<5;x++){
+    for(int x =8; x<14;x++){
         forAvg = forAvg + dstSinogramEdgePD[x];
     }
-    rearSinoPD.fill(forAvg/5);
+    rearSinoPD.fill(forAvg/6);
     QVector<QVector<int>> travelledOnBackside;
     for(int p = 0; p<numberOfAngles;p++){
         quint16 *dstArrSinoPMT = (quint16*)(rearSinoPMT.bits()+p*rearSinoPMT.bytesPerLine());
@@ -757,7 +758,7 @@ bool surface_fitting_test::correctExternalSinogramPDandPMT(QImage &sinogramPD, Q
                         //SinoPMT stuff
                         if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-2].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+2].yEntry!=0){
                             long double valuePMT = newBilinInterpolFromSinogram(sinogramPMT,absNewX,double(p)+rotateClockwise*deltaProj);
-                            long double valuePD = dstSinoStraightPD[x];
+                            long double valuePD = 300;
                             if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-10].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+10].yEntry!=0){
                                 valuePD = newBilinInterpolFromSinogram(sinogramPD,absNewX,double(p)+rotateClockwise*deltaProj);
                             }
@@ -785,13 +786,13 @@ bool surface_fitting_test::correctExternalSinogramPDandPMT(QImage &sinogramPD, Q
                             dstArrSinoPMT[x] = std::round(valuePMT);
                             dstArrSinoPD[x] = std::round(valuePD);
                         }else{
-                            dstArrSinoPMT[x] = dstSinoStraightPMT[x];
+                            //dstArrSinoPMT[x] = dstSinoStraightPMT[x];
                             dstArrSinoPD[x]=dstSinoStraightPD[x];
                         }
                     }else{
                         travelledOnBackside.append({p,x});
-                        dstArrSinoPMT[x] = dstSinoStraightPMT[x];
-                        dstArrSinoPD[x]=dstSinoStraightPD[x];
+//                        dstArrSinoPMT[x] = dstSinoStraightPMT[x];
+                        dstArrSinoPD[x]=300;
                         //rearrangedSinogramFails.setPixelColor(x,p,Qt::red);
                     }
                 }
@@ -828,7 +829,7 @@ bool surface_fitting_test::correctExternalSinogramPDandPMT(QImage &sinogramPD, Q
         quint16 *dstArrSinoFailedPD = (quint16*)(rearSinoPD.bits()+(travelledOnBackside[r][0])*rearSinoPD.bytesPerLine());
         if(dstArrSinoSourcePD[fromX]!=0){
             //rearrangedSinogramFails.setPixelColor(travelledOnBackside[r][1],travelledOnBackside[r][0],Qt::yellow);
-            dstArrSinoFailedPD[travelledOnBackside[r][1]] = dstArrSinoSourcePD[fromX];
+            //dstArrSinoFailedPD[travelledOnBackside[r][1]] = dstArrSinoSourcePD[fromX];
         }
     }
 
@@ -1875,7 +1876,12 @@ void surface_fitting_test::saveInfoFile(QString name, QString savepath)
 
     QTextStream stream(&file);
 
-    stream << "Das input Surface wurde geladen aus: "<<inputPathSurface<<"\n";
+    //stream << "Das input Surface wurde geladen aus: "<<inputPathSurface<<"\n";
+    if(fileListInfoSurface.size()!=0){
+        stream << "Das input Surface wurde geladen aus: "<<fileListInfoSurface[0].absoluteFilePath()<<"\n";
+    }else{
+        stream << "Das input Surface wurde geladen aus: "<<inputPathSurface<<"\n";
+    }
     stream << "Die Ordnung des Fits für die Oberfläche betrug: "<<fitOrder<<"\n";
     stream << "Die Anzahl der seitlich berücksichtigten Nachbarn für den Fit betrug: "<<slopeSigmaMT<<"\n";
     stream << "Für die Arithmetischen Mittel wurden so viele Folgepunkte berücksichtigt: "<<arithMiddleSigma<<"\n";
@@ -2646,7 +2652,7 @@ void surface_fitting_test::on_checkBox_accountForReflection_stateChanged(int arg
 
 void surface_fitting_test::on_pushButton_chooseSurfaceDirectory_clicked()
 {
-    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"G:/mSLOT/Mosqito2/");
     QDir dir(folderpathSurfaceStack);
     fileListInfoSurface = dir.entryInfoList();
 
@@ -2658,7 +2664,7 @@ void surface_fitting_test::on_pushButton_chooseSurfaceDirectory_clicked()
 
 void surface_fitting_test::on_pushButton_ChooseSinogramDirectory_clicked()
 {
-    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Sinogram PMT Folder"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Sinogram PMT Folder"),fileListInfoSurface[0].absoluteFilePath());
     QDir dir(folderpathSurfaceStack);
     fileListInfoSinogramPMT = dir.entryInfoList();
     fileListInfoSinogramPMT.removeFirst();
@@ -2697,12 +2703,12 @@ void surface_fitting_test::on_pushButton_correctStack_clicked()
     riMedium = ui->doubleSpinBox_riMedium->value();
     riSample = ui->doubleSpinBox_riSample->value();
     arithMiddleSigma = ui->spinBox_ariMiddleSigma->value();
-    const QString folderpathSavePMT = QFileDialog::getExistingDirectory(this,tr("Save Folder for PMT"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
+    const QString folderpathSavePMT = QFileDialog::getExistingDirectory(this,tr("Save Folder for PMT"),fileListInfoSurface[0].absoluteFilePath());
     QDir saveDirPMT(folderpathSavePMT);
     QString savePathPMT = saveDirPMT.absolutePath();
     savePathPMT.append("/");
     qDebug()<<savePathPMT;
-    const QString folderpathSavePD = QFileDialog::getExistingDirectory(this,tr("Save Folder for PD"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
+    const QString folderpathSavePD = QFileDialog::getExistingDirectory(this,tr("Save Folder for PD"),fileListInfoSurface[0].absoluteFilePath());
     QDir saveDirPD(folderpathSavePD);
     QString savePathPD = saveDirPD.absolutePath();
     savePathPD.append("/");
@@ -2850,7 +2856,7 @@ void surface_fitting_test::on_spinBox_fitOrder_valueChanged(int arg1)
 
 void surface_fitting_test::on_pushButton_choosePdSinogram_clicked()
 {
-    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Sinogram PD Folder"),"G:/mSLOT/Mosqito2/NP10-75-041a-x/2023_07_14/");
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Sinogram PD Folder"),fileListInfoSurface[0].absoluteFilePath());
     QDir dir(folderpathSurfaceStack);
     fileListInfoSinogramPD = dir.entryInfoList();
     fileListInfoSinogramPD.removeFirst();
