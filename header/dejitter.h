@@ -64,7 +64,9 @@ private:
 
     QVector<float> makeCurveFromList(QVector<QVector<float>> list, int height);
 
-    QVector<float> makeCurveFromSimulatedSinogram(QImage sinolation);
+    QVector<float> makeCurveFromSimulatedSinogramLeft(QImage sinolation);
+
+    QVector<float> makeCurveFromSimulatedSinogramRight(QImage sinolation);
 
     float getPointAlongLine(float x1, float y1, float x2, float y2, int y);
 
@@ -72,9 +74,13 @@ private:
 
     QVector<int> getVerticalColorVector(QImage image, int Y);
 
-    int getIndexOfFirstValue(QVector<int> vec);
+    int getIndexOfFirstValueLeft(QVector<int> vec);
 
-    float getBoarderCoordinate(QImage sinogram, int Y);
+    int getIndexOfFirstValueRight(QVector<int> vec);
+
+    float getBoarderCoordinateLeft(QImage sinogram, int Y);
+
+    float getBoarderCoordinateRight(QImage sinogram, int Y);
 
     int getColor(QImage image, int x, int y);
     /** Positiver Offset bedeutet, dass die Zeile nach rechts verschoben werden soll

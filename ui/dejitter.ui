@@ -114,7 +114,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>G:\mSLOT\NP10-30-025-helix\2023_07_12\new-dejitter-method\jitter-pd\AVG_reslice-5_output\jitter-pd</string>
+    <string>G:\mSLOT\Zellsphaeroid\jitter-real</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_dejitterStack">
@@ -153,7 +153,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>G:\mSLOT\NP10-30-025-helix\2023_07_12\new-dejitter-method\jitter-pd\AVG_reslice-5_output\dejitter-pd-simulation</string>
+    <string>G:\mSLOT\Zellsphaeroid\jitter-simo</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_dejitterStackSinolation">

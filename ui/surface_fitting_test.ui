@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>F:\mSLOT\MSQ_C3\</string>
+    <string>G:\ccd-slot\HB1\2023_07_27\surface\surface002</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -296,7 +296,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>C:\Users\o.hill\Pictures\siemens\siemends-large</string>
+    <string>G:\ccd-slot\HB1\2023_07_27\surface\surface002</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">
@@ -727,7 +727,7 @@
     <string>rotate clockwise</string>
    </property>
    <property name="checked">
-    <bool>true</bool>
+    <bool>false</bool>
    </property>
   </widget>
   <widget class="QLineEdit" name="lineEdit_threadedOutput">
