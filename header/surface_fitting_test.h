@@ -193,7 +193,7 @@ private:
     signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
     double mmPerPixelOnSensor = 0.0031;
-    double mmPerPixelInReco = 0.0349;
+    double mmPerPixelInReco = 0.01752;
     double correctedSensorRatio;
     QVector<QVector<double>> momentsList;
 //    /**

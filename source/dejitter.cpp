@@ -64,22 +64,12 @@ QVector<float> dejitter::makeCurveFromList(QVector<QVector<float>> list, int hei
     return curve;
 }
 
-QVector<float> dejitter::makeCurveFromSimulatedSinogramRight(QImage sinolation)
+QVector<float> dejitter::makeCurveFromSimulatedSinogram(QImage sinolation)
 {
     int height = sinolation.height();
     QVector<float> dejitterList = QVector<float>(height);
     for(int i = 0; i<height; i++){
-        dejitterList[i] = getBoarderCoordinateRight(sinolation,i);
-    }
-    return dejitterList;
-}
-
-QVector<float> dejitter::makeCurveFromSimulatedSinogramLeft(QImage sinolation)
-{
-    int height = sinolation.height();
-    QVector<float> dejitterList = QVector<float>(height);
-    for(int i = 0; i<height; i++){
-        dejitterList[i] = getBoarderCoordinateLeft(sinolation,i);
+        dejitterList[i] = getBoarderCoordinate(sinolation,i);
     }
     return dejitterList;
 }
@@ -110,7 +100,7 @@ float dejitter::getArithmicMiddle(QVector<int> vec, int base, int integral)
             frac = frac + vec[base + i];
         }
     }
-    return (sum/frac);
+    return double (sum/frac);
 }
 
 
@@ -125,9 +115,9 @@ QVector<int> dejitter::getVerticalColorVector(QImage image, int Y)
     return vec;
 }
 
-int dejitter::getIndexOfFirstValueRight(QVector<int> vec)
+int dejitter::getIndexOfFirstValue(QVector<int> vec)
 {
-    for(int index = vec.size(); index > 4; index--){
+    for(int index = 10; index < vec.size(); index++){
         if(vec[index]>10){
             return index;
         }
@@ -135,29 +125,11 @@ int dejitter::getIndexOfFirstValueRight(QVector<int> vec)
     return 0;
 }
 
-int dejitter::getIndexOfFirstValueLeft(QVector<int> vec)
-{
-    for(int index = 5; index < vec.size(); index++){
-        if(vec[index]>10){
-            return index;
-        }
-    }
-    return 0;
-}
-
-float dejitter::getBoarderCoordinateRight(QImage sinogram, int Y)
+float dejitter::getBoarderCoordinate(QImage sinogram, int Y)
 {
     auto vector = getVerticalColorVector(sinogram,Y);
-    int index = getIndexOfFirstValueRight(vector);
-    float boarder = getArithmicMiddle(vector,index,-6);
-    return boarder;
-}
-
-float dejitter::getBoarderCoordinateLeft(QImage sinogram, int Y)
-{
-    auto vector = getVerticalColorVector(sinogram,Y);
-    int index = getIndexOfFirstValueLeft(vector);
-    float boarder = getArithmicMiddle(vector,index,6);
+    int index = getIndexOfFirstValue(vector);
+    float boarder = getArithmicMiddle(vector,index,7);
     return boarder;
 }
 
@@ -250,31 +222,13 @@ void dejitter::on_pushButton_testMath_clicked()
 {
 
     //QVector<float> offsetSource = makeCurveFromList(curveCoordinates,sinolation.height());
-    QVector<float> offsetSource = makeCurveFromSimulatedSinogramLeft(sinolation);
+    QVector<float> offsetSource = makeCurveFromSimulatedSinogram(sinolation);
     offsetMap = QVector<float>(sinolation.height());
     for(int y = 0;y<sinolation.height();y++){
-        float boarder = getBoarderCoordinateLeft(matchingSinogram,y);
+        float boarder = getBoarderCoordinate(matchingSinogram,y);
         offsetMap[y]=offsetSource[y]-boarder;
     }
-    //qDebug()<<offsetMap;
-    qDebug()<<"Jetzt beidseitige Betrachtung:";
-    QVector<float> offsetLeft = makeCurveFromSimulatedSinogramLeft(sinolation);
-    //qDebug()<<"Linke map:"<<offsetLeft;
-    QVector<float> offsetRight = makeCurveFromSimulatedSinogramRight(sinolation);
-    //qDebug()<<"Rechte map:"<<offsetRight;
-    QVector<float> offSetMapNew = QVector<float>(sinolation.height());
-    for(int y = 0;y<sinolation.height();y++){
-        float boarderLeft = getBoarderCoordinateLeft(matchingSinogram,y);
-        float bufLeft = offsetLeft[y] - boarderLeft;
-        qDebug()<<"Offset links:"<<bufLeft;
-        float boarderRight = getBoarderCoordinateRight(matchingSinogram,y);
-        float bufRight = offsetRight[y] - boarderRight;
-        qDebug()<<"Offset rechts:"<<bufRight;
-        offSetMapNew[y]=(bufLeft+bufRight)/2.0;
-        qDebug()<<"Unterschied in zeile: "<<y<<"bträgt: "<<offsetMap[y]-offSetMapNew[y];
-        offsetMap=offSetMapNew;
-    }
-
+    qDebug()<<offsetMap;
 }
 
 void dejitter::on_pushButton_loadMatchingPD_clicked()
@@ -295,7 +249,7 @@ void dejitter::on_pushButton_loadMatchingPD_clicked()
 
 void dejitter::on_pushButton_loadPdStack_clicked()
 {
-    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("PD Jitter Stack"),"G:/mSLOT/Mosqito2/");
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
     QDir dir(folderpathSurfaceStack);
     PDlist = dir.entryInfoList();
     PDlist.removeFirst();
@@ -306,7 +260,7 @@ void dejitter::on_pushButton_loadPdStack_clicked()
 
 void dejitter::on_pushButton_loadPmtStack_clicked()
 {
-    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("PMT Jitter Stack"),PDlist[0].absoluteFilePath());
+    const QString folderpathSurfaceStack = QFileDialog::getExistingDirectory(this,tr("Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
     QDir dir(folderpathSurfaceStack);
     PMTlist = dir.entryInfoList();
     PMTlist.removeFirst();
@@ -320,12 +274,11 @@ void dejitter::on_pushButton_dejitterStack_clicked()
     QVector<float> offsetSource = makeCurveFromList(curveCoordinates,matchingSinogram.height());
     offsetMap = QVector<float>(matchingSinogram.height());
     for(int y = 0;y<matchingSinogram.height();y++){
-        float boarder = getBoarderCoordinateLeft(matchingSinogram,y);
+        float boarder = getBoarderCoordinate(matchingSinogram,y);
         offsetMap[y]=offsetSource[y]-boarder;
     }
     qDebug()<<offsetMap;
-    on_pushButton_testMath_clicked();
-    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Save PMT Dejitter Stack"),PDlist[0].absoluteFilePath());
+    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
     QDir saveDir(folderpathSave);
     QString savePath = saveDir.absolutePath();
     savePath.append("/");
@@ -366,38 +319,11 @@ void dejitter::on_pushButton_loadSinolation_clicked()
 
 void dejitter::on_pushButton_dejitterStackSinolation_clicked()
 {
-    QVector<float> offsetSource = makeCurveFromSimulatedSinogramLeft(sinolation);
+    QVector<float> offsetSource = makeCurveFromSimulatedSinogram(sinolation);
     offsetMap = QVector<float>(sinolation.height());
     for(int y = 0;y<sinolation.height();y++){
-        float boarder = getBoarderCoordinateLeft(matchingSinogram,y);
+        float boarder = getBoarderCoordinate(matchingSinogram,y);
         offsetMap[y]=offsetSource[y]-boarder;
     }
     qDebug()<<offsetMap;
-    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
-    QDir saveDir(folderpathSave);
-    QString savePath = saveDir.absolutePath();
-    savePath.append("/");
-    qDebug()<<savePath;
-    if(dejitterPD==true){
-        for(int i = 0; i<PDlist.size();i++){
-            QImage bufSinogram;
-            bufSinogram.load(PDlist[i].absoluteFilePath());
-            bufSinogram = dejitterSinogram(bufSinogram,offsetMap, false);
-            QString name = "korrigiertesPD_Sinogram_";
-            name.append(QString::number(i)).append(".png");
-            bufSinogram.save(savePath + name);
-            qDebug()<<"PD Sinogram Nr"<<i<<"korrigiert.";
-        }
-    }
-    if(dejitterPMT==true){
-        for(int i = 0; i<PMTlist.size();i++){
-            QImage bufSinogram;
-            bufSinogram.load(PMTlist[i].absoluteFilePath());
-            bufSinogram = dejitterSinogram(bufSinogram,offsetMap, true);
-            QString name = "korrigiertesPMT_Sinogram_";
-            name.append(QString::number(i)).append(".png");
-            bufSinogram.save(savePath + name);
-            qDebug()<<"PMT Sinogram Nr"<<i<<"korrigiert.";
-        }
-    }
 }
