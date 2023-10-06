@@ -201,7 +201,7 @@ QImage dejitter::dejitterSinogram(QImage sinogram, QVector<float> offsetList, bo
     for(int x =0; x<5;x++){
         forAvg = forAvg + dstSinogramEdge[x];
     }
-    qDebug()<<"Der Average Grauwert ist: "<<forAvg;
+    qDebug()<<"Der Average Grauwert ist: "<<forAvg/5;
     dejiSino.fill(forAvg/5);
 //    if(pmt){//stattdessen den durchschnittswert der unteren rechten 5x5 pixel nehmen
 //        dejiSino.fill(0);
@@ -324,7 +324,7 @@ void dejitter::on_pushButton_dejitterStack_clicked()
         offsetMap[y]=offsetSource[y]-boarder;
     }
     qDebug()<<offsetMap;
-    on_pushButton_testMath_clicked();
+    //on_pushButton_testMath_clicked();
     const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Save PMT Dejitter Stack"),PDlist[0].absoluteFilePath());
     QDir saveDir(folderpathSave);
     QString savePath = saveDir.absolutePath();
@@ -373,7 +373,7 @@ void dejitter::on_pushButton_dejitterStackSinolation_clicked()
         offsetMap[y]=offsetSource[y]-boarder;
     }
     qDebug()<<offsetMap;
-    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Surface Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
+    const QString folderpathSave = QFileDialog::getExistingDirectory(this,tr("Save Folder"),"C:/Users/o.hill/Pictures/oct_handling/surface_steepness/");
     QDir saveDir(folderpathSave);
     QString savePath = saveDir.absolutePath();
     savePath.append("/");

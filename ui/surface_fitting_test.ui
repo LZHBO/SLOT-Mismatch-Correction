@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>G:\ccd-slot\HB1\2023_07_27\surface\surface002</string>
+    <string>G:\ccd-slot\Col_1b-ccd\2023_08_23\02</string>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_loadAndDisplay">
@@ -177,7 +177,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.330000000000000</double>
+    <double>1.500000000000000</double>
    </property>
   </widget>
   <widget class="QDoubleSpinBox" name="doubleSpinBox_riSample">
@@ -199,7 +199,7 @@
     <double>0.001000000000000</double>
    </property>
    <property name="value">
-    <double>1.415000000000000</double>
+    <double>1.540000000000000</double>
    </property>
   </widget>
   <widget class="QPushButton" name="pushButton_createSinogram">
@@ -296,7 +296,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>G:\ccd-slot\HB1\2023_07_27\surface\surface002</string>
+    <string>G:\ccd-slot\Col_1b-ccd\2023_08_23\02</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_7">

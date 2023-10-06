@@ -263,6 +263,24 @@ int surface_fitting_test::getFirstValueFromBottom(QImage image, int X)
     return 0;
 }
 
+int surface_fitting_test::getFirstIndexFromLeft(QImage surface)
+{
+    int index = 0;
+    while(getFirstValueFromTop(surface,index)==0){
+        index++;
+    }
+    return index;
+}
+
+int surface_fitting_test::getFirstIndexFromRight(QImage surface)
+{
+    int index = surface.width()-1;
+    while(getFirstValueFromTop(surface,index)==0){
+        index--;
+    }
+    return index;
+}
+
 QImage surface_fitting_test::thinOutSurface(QImage image)
 {
     QImage output = QImage(image.size(),QImage::Format_Grayscale8);
@@ -497,9 +515,11 @@ QImage surface_fitting_test::correctExternalSinogram(QImage sinogram, QImage sur
                         if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-2].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+2].yEntry!=0){
                             long double value = newBilinInterpolFromSinogram(sinogram,absNewX,double(p)+rotateClockwise*deltaProj);
                             if(accountForReflection==true){
-                                int newP = std::round(p+deltaProj);
-                                newP = (newP+numberOfAngles)%numberOfAngles;
-                                value = value/getTransmissionGrade(mediumRI,sampleRI,newRotatedEntryPoints[newP][std::round(absNewX)]); // muss noch auf neues Struct umgeschrieben werden ... hier müsste eigentlich der Winkel vom Partner angegeben werden!! Deswegen zu hell
+                             //   int newP = std::round(p+deltaProj);
+                             //   newP = (newP+numberOfAngles)%numberOfAngles;
+                             //   value = value/getTransmissionGrade(mediumRI,sampleRI,newRotatedEntryPoints[newP][std::round(absNewX)]); // muss noch auf neues Struct umgeschrieben werden ... hier müsste eigentlich der Winkel vom Partner angegeben werden!! Deswegen zu hell
+                                value = value*(1+std::abs(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][absNewX].slopeEntry));
+                                //valuePD = valuePD*(1+newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][absNewX].slopeEntry);
                             }
                             if(value<0){
                                 qDebug()<<"Wert war unter Null bei: "<<p<<x;
@@ -621,7 +641,7 @@ bool surface_fitting_test::correctExternalSinogramPDandPMT(QImage &sinogramPD, Q
         //Strahl durch die "Projektion" propagieren
         for(int x = 1;x<surface.width();x++){
             newRotatedEntryPoints[k][x].xEntry = x;
-            if(newRotatedEntryPoints[k][x-1].yEntry!=0 && newRotatedEntryPoints[k][x].yEntry!=0!=0 && newRotatedEntryPoints[k][x+1].yEntry!=0){ //dadurch werden die äußersten Punkte ignoriert
+            if(newRotatedEntryPoints[k][x-1].yEntry!=0 && newRotatedEntryPoints[k][x].yEntry!=0 && newRotatedEntryPoints[k][x+1].yEntry!=0){ //dadurch werden die äußersten Punkte ignoriert
                 QVector<double>bufVec = getSlopeAtEntry(rotatedSurfacesThinnedOut[k],x,slopeSigma);
                 double exitAngle = getExitAngle(bufVec[1],mediumRI,sampleRI);
                 newRotatedEntryPoints[k][x].gammaEntry = exitAngle;
@@ -755,19 +775,21 @@ bool surface_fitting_test::correctExternalSinogramPDandPMT(QImage &sinogramPD, Q
                         double deltaProj = deltaTheta*double(numberOfAngles)/(2*M_PI);
                         QVector<double> buf = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(surface.width()/2),double(surface.height()/2)},deltaTheta,true);
                         double absNewX = buf[0];
-                        //SinoPMT stuff
-                        if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-2].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+2].yEntry!=0){
+                        if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-3].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+3].yEntry!=0){
                             long double valuePMT = newBilinInterpolFromSinogram(sinogramPMT,absNewX,double(p)+rotateClockwise*deltaProj);
                             long double valuePD = 300;
-                            if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-10].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+10].yEntry!=0){
+                            //if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-5].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+5].yEntry!=0){
+                            //    valuePD = newBilinInterpolFromSinogram(sinogramPD,absNewX,double(p)+rotateClockwise*deltaProj);
+                            //}
+                            if(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)-13].yEntry!=0&&newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][std::round(absNewX)+13].yEntry!=0){
                                 valuePD = newBilinInterpolFromSinogram(sinogramPD,absNewX,double(p)+rotateClockwise*deltaProj);
+                                if(accountForReflection){
+                                    valuePD = valuePD*(1+std::abs(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][absNewX].slopeEntry));
+                                }
                             }
                             if(accountForReflection==true){
-                                int newP = std::round(p+deltaProj);
-                                newP = (newP+numberOfAngles)%numberOfAngles;
-                                valuePMT = valuePMT/getTransmissionGrade(mediumRI,sampleRI,newRotatedEntryPoints[newP][std::round(absNewX)]); // muss noch auf neues Struct umgeschrieben werden ... hier müsste eigentlich der Winkel vom Partner angegeben werden!! Deswegen zu hell
-                                valuePD = valuePD/getTransmissionGrade(mediumRI,sampleRI,newRotatedEntryPoints[newP][std::round(absNewX)]);
-                            }
+                                valuePMT = valuePMT*(1+std::abs(newRotatedEntryPoints[(int(std::round(double(p)+rotateClockwise*deltaProj)+numberOfProjections))%(numberOfProjections)][absNewX].slopeEntry));
+                                }
                             if(valuePMT<0){
                                 qDebug()<<"Wert war unter Null bei: "<<p<<x;
                                 valuePMT=0;
@@ -1457,7 +1479,7 @@ QVector<double> surface_fitting_test::getPolySlopeAtEntryStatic(QImage &surface,
                 double ariMi = getArithmicMiddleStatic(aScan,getFirstValueFromTopStatic(surface,x),slopePxlNoMT);
                 xValues.append(x-X);
                 yValues.append(ariMi);
-                realsize++;
+                realsize++; //hier muss es anders laufen
             }
         }
         QVector<QVector<double>> array=QVector<QVector<double>>(realsize);
@@ -1474,6 +1496,7 @@ QVector<double> surface_fitting_test::getPolySlopeAtEntryStatic(QImage &surface,
         }
         QVector<double> gamba = polyFit::getSlopeStaticQt(xValues,yValues,array, order);
         //qDebug()<<"Gamba?"<<gamba;
+        //qDebug()<<yValues<< realsize<<gamba;
         return gamba;
     }else{
         return {300,300};
@@ -1681,11 +1704,12 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
     myPoint.xEntry = xEntry;
     QImage thinSurface = thinOutSurface(surface);
     if(getFirstValueFromTop(surface,xEntry-1)!=0 && getFirstValueFromTop(surface,xEntry)!=0 && getFirstValueFromTop(surface,xEntry+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
-        QVector<double> slope = getPolySlopeAtEntryQt(surface,xEntry,fitOrder,true);
-        myPoint.gammaEntry = getExitAngle(slope[0],mediaRI,samplRi);
-        myPoint.yEntry = slope[1];
+        myPoint.slopeEntry = getPolySlopeAtEntryQt(surface,xEntry,fitOrder,true)[0];
+        myPoint.yEntry = getPolySlopeAtEntryQt(surface,xEntry,fitOrder,true)[1];
+        myPoint.gammaEntry = getExitAngle(myPoint.slopeEntry,mediaRI,samplRi);
         QVector<double> rayVector = parameterizeFromAngle(xEntry,myPoint.yEntry, myPoint.gammaEntry);
-        if( myPoint.gammaEntry>=0&& myPoint.gammaEntry<1.0){  //Strahl wird nach rechts abgelenkt
+        myPoint.lengthEntry = 0;
+        if( myPoint.gammaEntry>=0 && myPoint.gammaEntry<1.0){  //Strahl wird nach rechts abgelenkt
             int X=xEntry;
             bool success = false;
             while(success == false && getFirstValueFromBottom(thinSurface,X+1)>0){
@@ -1763,15 +1787,17 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
                     }
                 }
             }
-        }else if(myPoint.gammaEntry==1){
+        }/*else if(myPoint.gammaEntry==1){
             //qDebug()<<"Strahl wurde totalreflektiert!";
             return {double(xEntry),0,1};
         }else{
             //qDebug()<<"Strahl wurde totalreflektiert!";
             return {double(xEntry),0,-1};
-        }
+        }*/
 
-    myPoint.xExit = xEntry + myPoint.lengthEntry*qSin(myPoint.gammaEntry);
+    myPoint.xExit = xEntry + myPoint.lengthEntry*qSin(myPoint.gammaEntry) - firstIndexFromLeft; //firstIndexFromLeft added.
+
+    //myPoint.xExit = myPoint.lengthEntry*qSin(myPoint.gammaEntry);
 
     double exitSlope = getPolySlopeAtExit(surface,std::round(myPoint.xExit))[0];
 
@@ -1779,13 +1805,14 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
 
     return {myPoint.xExit, myPoint.yExit, backExitAngle};
 }else{
+        qDebug()<<"Kein Plan was jetzt passiert ist";
         return {double(xEntry),0,0};
     }
 }
 QVector<double> surface_fitting_test::generateRefractionPattern(QImage surface, double mediaRI, double sampleRI)
 {
     QVector<double> pattern = QVector<double>(surface.width());
-    for(int x = 0; x<surface.width(); x++){
+    for(int x = 0; x<=surface.width(); x++){
         QVector<double> exit = getBackExitPointAndAngle(surface,x,mediaRI,sampleRI);
         //qDebug()<<"Ausgangspunkt aus Probe in mm"<<mmPerPixelInReco*exit[1];
         pattern[x]=calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
@@ -1797,33 +1824,79 @@ QVector<double> surface_fitting_test::generateRefractionPattern(QImage surface, 
     return pattern;
 }
 
-void surface_fitting_test::determineTeleError(QVector<QVector<double> > moments)
+QVector<refraction::imageMoments> surface_fitting_test::shortenMomentsList(QVector<refraction::imageMoments> moments)
+{
+    double offset = (std::abs(moments[3].momentX-moments[0].momentX))/4.0;
+    int counter = 0;
+    double grayThreshold = (moments[0].graySum + moments[1].graySum + moments[2].graySum)/3;
+    while(std::abs(moments[1].momentX-moments[0].momentX)<(3*offset)){
+        qDebug()<<"Bild links neben der Probe wurde entfernt";
+        counter++;
+        moments.remove(0);
+    }
+    qDebug()<<counter<<"Bilder wurden links entfernt";
+    qDebug()<<"Grauwert des ersten Bildes: "<<moments[0].graySum;
+    qDebug()<<"Grauwert des zweiten Bildes: "<<moments[1].graySum;
+    counter = 0;
+    int currSize = moments.size();
+    while(std::abs(moments[currSize-1].momentX-moments[currSize-2].momentX)<(3*offset)){
+        qDebug()<<"Bild rechts neben der Probe wurde entfernt";
+        counter++;
+        moments.remove(currSize-1);
+        currSize--;
+    }
+    for(int i = 0; i<moments.size();i++){
+        if(moments[i].graySum < grayThreshold/20 ){
+            moments[i].momentX = -999;
+            qDebug()<<"Bild Nummer "<<i<<"entfernt, weil der Grauwert zu niedrig war!"<<moments[i].graySum;
+        }
+    }
+    qDebug()<<counter<<"Bilder wurden rechts entfernt";
+    qDebug()<<"Grauwert des letzten Bildes: "<<moments[currSize-1].graySum;
+    qDebug()<<"Grauwert des vorletzten Bildes: "<<moments[currSize-2].graySum;
+    qDebug()<<"Bleiben noch folgende Anzahl Bilder übrig:"<<moments.size();
+    return moments;
+}
+
+void surface_fitting_test::determineTeleError(QVector<refraction::imageMoments > moments)
 {
     int scanPoints = moments.size();
     qDebug()<<scanPoints;
     qDebug()<<"Hardgecodeter Offset Per Pixel auf Sensor: "<<mmPerPixelOnSensor;
     //Ablenkung in Probe und Ablenkung auf Sensor vergleichen
-    double relativeScanMovementInSample = scanPoints*mmPerPixelInReco;
+
+    double relativeScanMovementInSample = (getFirstIndexFromRight(inputSurface)-getFirstIndexFromLeft(inputSurface))*mmPerPixelInReco;
     qDebug()<<"Der Laser wurde in der Probe um "<<relativeScanMovementInSample<<" in x-Richtung bewegt";
-    double relativeScanMovementOnSensor = (moments[scanPoints-1][0] - moments[0][0])*mmPerPixelOnSensor;
+    double relativeScanMovementOnSensor = (moments[scanPoints-1].momentX - moments[0].momentX)*mmPerPixelOnSensor;
     qDebug()<<"Der Laser wurde in der auf dem Sensor um "<<relativeScanMovementOnSensor<<" in x-Richtung bewegt";
-    correctedSensorRatio = relativeScanMovementInSample/std::abs(moments[scanPoints-1][0] - moments[0][0]);
+    correctedSensorRatio = relativeScanMovementInSample/std::abs(moments[scanPoints-1].momentX - moments[0].momentX);
     qDebug()<<"Echte Ratio aufm Sensor: "<<mmPerPixelOnSensor;
     qDebug()<<"Korrigierte Ratio aufm Sensor: "<<correctedSensorRatio;
 }
 
-QVector<QVector<double> > surface_fitting_test::makeListRelativeAndScaled(QVector<QVector<double> > moments)
+QVector<refraction::imageMoments> surface_fitting_test::makeListRelativeAndScaled(QVector<refraction::imageMoments> moments)
 {
-    double offset = moments[0][0];
+    double offset = moments[0].momentX;
     for(int x = 0; x<moments.size();x++){
-        moments[x][0] = (moments[x][0] - offset)*correctedSensorRatio;
-        qDebug()<<"Skalierter und relativierter Versatz für Punkt "<<x<<"ist: "<<moments[x][0];
+        //qDebug()<<"Nicht-skalierter Versatz:"<<x<<moments[x].momentX - offset;
+        moments[x].momentX = (moments[x].momentX - offset)*correctedSensorRatio;
+        //qDebug()<<"Skalierter und relativierter Versatz für Punkt "<<x<<"ist: "<<moments[x].momentX;
     }
     return moments;
 }
 
+QVector<refraction::imageMoments> surface_fitting_test::swapOrder(QVector<refraction::imageMoments> moments)
+{
+    QVector<refraction::imageMoments> returnMoments = QVector<refraction::imageMoments>(moments.size());
+    for(int i = 0; i<moments.size();i++){
+        returnMoments[i] = moments[moments.size()-1-i];
+    }
+    return returnMoments;
+}
+
 double surface_fitting_test::getFittingSampleRI(QImage surface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset)
 {
+    // xEntry ist Pixel in Surface Bild, xCameraPoint ist relative (zur Startposition) mm Position auf der Kamera
     //double mmPerPixel = 0.01;
     double currTestRi = expectedSampleRI - riRange;
     double smallestDeviation = 100;
@@ -1839,7 +1912,7 @@ double surface_fitting_test::getFittingSampleRI(QImage surface, int xEntry, doub
         }
     }
     while(currTestRi <=expectedSampleRI+riRange){
-        QVector<double> exit = getBackExitPointAndAngle(surface,xEntry,mediaRI,currTestRi);
+        QVector<double> exit = getBackExitPointAndAngle(surface,xEntry,mediaRI,currTestRi); // alles in pixel
         //qDebug()<<"Ausgangpunkt aus Probe in mm "<<mmPerPixelInReco*exit[1];
         if(exit[2]>-1&&exit[2]<1){
             double cameraPoint =calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
@@ -1851,9 +1924,11 @@ double surface_fitting_test::getFittingSampleRI(QImage surface, int xEntry, doub
         currTestRi = currTestRi + riIncriment;
     }
     if(smallestDeviation<exceptableOffset){
-        //qDebug()<<"Smallest Deviation von "<<xEntry<<smallestDeviation;
+        qDebug()<<"Smallest Deviation von "<<xEntry<<smallestDeviation;
+
         return fittingRi;
     }
+    qDebug()<<"Erfolglos. Kleinster Offset:" <<smallestDeviation << "Und folgender RI: "<<fittingRi;
     return 333;
 }
 
@@ -1912,10 +1987,10 @@ void surface_fitting_test::fillInThinnedSurface(QImage surface, int i)
     qDebug()<<"Thinned out surface in Liste eingetragen!!"<<i;
 }
 
-void surface_fitting_test::getMomentsList(QVector<QVector<double> > moments)
+void surface_fitting_test::getMomentsList(QVector<refraction::imageMoments> moments)
 {
     momentsList = moments;
-    qDebug()<<"Liste der Momente erhalten. Erster Wert: "<<momentsList[0];
+    qDebug()<<"Liste der Momente erhalten. Erster Grauwert: "<<momentsList[0].graySum;
 }
 
 void surface_fitting_test::on_spinBox_aScan_valueChanged(int arg1)
@@ -2404,13 +2479,30 @@ void surface_fitting_test::on_spinBox_rotateDisplayImageBy_valueChanged(int arg1
 
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
-
+    firstIndexFromLeft = getFirstIndexFromLeft(inputSurface);
+    firstIndexFromRight = getFirstIndexFromRight(inputSurface);
+    QVector<double> pattern = generateRefractionPattern(inputSurface,ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value());
+    momentsList.clear();
+    momentsList.resize(pattern.size());
+    for(int i = 0; i<pattern.size();i++){
+        momentsList[i].momentX=pattern[i]*2;
+        momentsList[i].graySum = 100;
+    }
+    momentsList = shortenMomentsList(momentsList);
     determineTeleError(momentsList);
     momentsList = makeListRelativeAndScaled(momentsList);
     QVector<double> fittedRI(momentsList.size());
-    for (int x = 2; x<momentsList.size()-2;x++){
-        fittedRI[x] = getFittingSampleRI(inputSurface,x,momentsList[x][0],ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.04,0.0002,0.1);
+    //hier muss der äußere Wert links und rechts im Surface-Bild bestimmt werden, der auf die Probe trifft
+
+    qDebug()<<"Index links: "<<firstIndexFromLeft<<"Index rechts: "<<firstIndexFromRight;
+    deltaPixel = (firstIndexFromRight-firstIndexFromLeft)/double(momentsList.size()-3);
+    qDebug()<<"Delta pixel beträgt:"<<deltaPixel;
+    //dann muss die Spanne dieser Werte durch die momentsList.size-2 geteilt werden, damit man den
+    for (int x = 1; x<momentsList.size()-1;x++){
+        fittedRI[x] = getFittingSampleRI(inputSurface,firstIndexFromLeft+std::round((x-1)*deltaPixel),momentsList[x].momentX,ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.02,0.001,2);
         qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
+        //qDebug()<<"Offset für diesen Strahl ist:"<<momentsList[x].momentX;
+        //qDebug()<<"Pixel im Bild: " << firstIndexFromLeft + std::round((x-1)*deltaPixel);
     }
     qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
     fittedRI.removeAll(333);

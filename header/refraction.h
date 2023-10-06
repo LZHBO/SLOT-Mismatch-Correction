@@ -24,9 +24,16 @@ class refraction : public QWidget
 {
     Q_OBJECT
 
+
+
 public:
     explicit refraction(QWidget *parent = nullptr);
     ~refraction();
+    struct imageMoments{
+        double momentX = 0;
+        double momentY = 0;
+        double graySum = 0;
+    };
 
 private slots:
     void on_pushButton_browse_clicked();
@@ -45,7 +52,7 @@ private:
 
 
 signals:
-    void sendMomentsList(QVector<QVector<double>> moments);
+    void sendMomentsList(QVector<imageMoments> moments);
 
 };
 

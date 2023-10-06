@@ -80,6 +80,13 @@ class surface_fitting_test : public QWidget
         QVector<entryPoint> ePoints;
     };
 
+//    struct imageMoments{
+//        double momentX = 0;
+//        double momentY = 0;
+//        double graySum = 0;
+//    };
+
+
 public:
     explicit surface_fitting_test(QWidget *parent = nullptr);
     static int  propagateRaysMulti(QImage thinnedOutSurface);
@@ -182,6 +189,9 @@ private:
     QImage sinogramHisto;
     QImage transmissionHisto;
     QImage bScan;
+    int firstIndexFromLeft = 0;
+    int firstIndexFromRight = 0;
+    double deltaPixel = 0;
     bool createTransmission = 0;
     bool accountForReflection = 0;
     bool useArrayFire = 1;
@@ -193,9 +203,9 @@ private:
     signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
     double mmPerPixelOnSensor = 0.0031;
-    double mmPerPixelInReco = 0.0349;
+    double mmPerPixelInReco = 0.00437;
     double correctedSensorRatio;
-    QVector<QVector<double>> momentsList;
+    QVector<refraction::imageMoments> momentsList;
 //    /**
 //     * Punkte für die der korrigierte Wert auf der Rückseite wäre, erster Eintrag Nummer der Projektion, zweiter Eintrag AScan der Projektion
 //     */
@@ -221,6 +231,8 @@ private:
     double getDeltaThetaForPartner(double slope, double n1, double n2);
     int getFirstValueFromTop(QImage image, int X);
     int getFirstValueFromBottom(QImage image, int X);
+    int getFirstIndexFromLeft(QImage surface);
+    int getFirstIndexFromRight(QImage surface);
     QImage thinOutSurface(QImage image);
     QImage noiseBScan(QImage bScan, double noiseFactor);
     QImage correctExternalSinogram(QImage sinogram, QImage surface, QString surfacePath, double mediumRI, double sampleRI);
@@ -283,15 +295,17 @@ private:
     double calculateCameraPoint(double mediumRI, double yExit, double xExit, double angleExit);
     QVector<double> getBackExitPointAndAngle(QImage surface, int xEntry, double mediaRI, double samplRi);
     QVector<double> generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI);
-    void determineTeleError(QVector<QVector<double>> moments);
-    QVector<QVector<double>> makeListRelativeAndScaled(QVector<QVector<double>> moments);
+    QVector<refraction::imageMoments> shortenMomentsList(QVector<refraction::imageMoments> moments);
+    void determineTeleError(QVector<refraction::imageMoments> moments);
+    QVector<refraction::imageMoments> makeListRelativeAndScaled(QVector<refraction::imageMoments> moments);
+    QVector<refraction::imageMoments> swapOrder(QVector<refraction::imageMoments> moments);
     double getFittingSampleRI(QImage thinSurface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset);
 
     void saveInfoFile(QString name, QString savepath);
 public slots:
     void newNumber(QString name, int number, QString threadID);
     void fillInThinnedSurface(QImage surface, int i);
-    void getMomentsList(QVector<QVector<double>> moments);
+    void getMomentsList(QVector<refraction::imageMoments> moments);
 signals:
     void on_stop();
 };
