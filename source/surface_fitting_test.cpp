@@ -895,6 +895,7 @@ double surface_fitting_test::getExitAngle(double slope, double n1, double n2) //
 
 double surface_fitting_test::getExitAngleAtBack(double slope, double nSample, double nMedium, double gamma)
 {
+    //qDebug()<<"In der Probe ist der Winkel "<<gamma<<"und trifft auf eine Steigung von "<<slope;
     if(nSample==nMedium){
         return gamma;
     }else if((nSample*qSin(qAtan(slope)+gamma))/nMedium<-1){
@@ -902,6 +903,7 @@ double surface_fitting_test::getExitAngleAtBack(double slope, double nSample, do
     }else if((nSample*qSin(qAtan(slope)+gamma))/nMedium>1){
         return 1.0;
     }else{
+        //qDebug()<<"Der Austrittswinkel hinter der Oberfläche ist "<<qAsin((nSample*qSin(gamma + qAtan(slope)))/nMedium) - qAtan(slope);
         return qAsin((nSample*qSin(gamma + qAtan(slope)))/nMedium) - qAtan(slope);
     }
 }
@@ -1674,46 +1676,45 @@ QVector<double> surface_fitting_test::getIntersectionPointStatic(QVector<double>
     return intersection;
 }
 
-double surface_fitting_test::calculateCameraPoint(double mediumRI, double yExit, double xExit, double angleExit)
+
+double surface_fitting_test::calculateRelativCameraOffset(double mediumRI, double yExit, double xExit, double angleExit)
 {
-    //hier muss noch irgendwie ein Faktor rein um von Pixeln auf mm zu kommen
     if(angleExit == -1){
-        return -99;
+        return -200;
     }else if(angleExit ==1){
-        return 99;
+        return 200;
     }
+    //qDebug()<<"Versatz in der Probe "<<xExit;
     double radiusGlassCuvette = 9.0;
     double n2 = 1.523;
     double n3 = 1;
-    double y1 = radiusGlassCuvette+yExit-mmPerPixelInReco*inputSurface.height()/2;
+    double y1 = radiusGlassCuvette-yExit+mmPerPixelInReco*inputSurface.height()/2;
     double y2 = 2.0;
     double y3 = 73.0;
     double x1 = y1*qTan(angleExit);
-    //qDebug()<<"Versatz auf Innenseite: "<<x1;
+    //qDebug()<<"Versatz hinter der Probe "<<x1;
     double x2 = y2*qTan(qAsin(qSin(angleExit)*mediumRI/n2));
-    //qDebug()<<"Versatz innerhalb Glas: "<<x2;
-    double x3 = y3*qTan(qAsin(qSin(angleExit)*mediumRI/n3));
-    //qDebug()<<"Winkel hinter GlassCuvete (total): "<<qRadiansToDegrees(qAsin(qSin(angleExit)*mediumRI/n3));
-    //qDebug()<<"Versatz in X: "<<x1+x2+x3;
-    return xExit + x1 + x2 + x3;
+    //qDebug()<<"Versatz im Glas "<<x2;
+    double x3 = y3*qTan(qAsin(mediumRI*qSin(angleExit)));
+    //qDebug()<<"Versatz hinter der Küvette "<<x3;
+    return xExit+x1+x2+x3;
 }
 
-QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, int xEntry, double mediaRI, double samplRi)
+QVector<double> surface_fitting_test::getBackExitPointAndAngle(QVector<entryPoint> surfacePoints, int xEntry, double mediaRI, double samplRi)
 {
-    struct entryPoint myPoint;
-    myPoint.xEntry = xEntry;
-    QImage thinSurface = thinOutSurface(surface);
-    if(getFirstValueFromTop(surface,xEntry-1)!=0 && getFirstValueFromTop(surface,xEntry)!=0 && getFirstValueFromTop(surface,xEntry+1)!=0){ //dadurch werden die äußersten Punkte ignoriert
-        myPoint.slopeEntry = getPolySlopeAtEntryQt(surface,xEntry,fitOrder,true)[0];
-        myPoint.yEntry = getPolySlopeAtEntryQt(surface,xEntry,fitOrder,true)[1];
+    struct entryPoint myPoint = surfacePoints[xEntry];
+    myPoint.yExit = 0;
+    myPoint.lengthEntry = 0;
+    myPoint.xExit = 0;
+    if(myPoint.yEntry!=0){ //dadurch werden die äußersten Punkte ignoriert
         myPoint.gammaEntry = getExitAngle(myPoint.slopeEntry,mediaRI,samplRi);
         QVector<double> rayVector = parameterizeFromAngle(xEntry,myPoint.yEntry, myPoint.gammaEntry);
         myPoint.lengthEntry = 0;
         if( myPoint.gammaEntry>=0 && myPoint.gammaEntry<1.0){  //Strahl wird nach rechts abgelenkt
             int X=xEntry;
             bool success = false;
-            while(success == false && getFirstValueFromBottom(thinSurface,X+1)>0){
-                QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(thinSurface,X), X+1, getFirstValueFromBottom(thinSurface,X+1));
+            while(success == false && surfacePoints[X+1].yExit>0){
+                QVector<double> surfaceVector = parameterizeFromPoints(X, surfacePoints[X].yExit, X+1, surfacePoints[X+1].yExit);
                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                 if(intersection[0]>=X&&intersection[0]<X+1){
                     myPoint.lengthEntry = intersection[2];
@@ -1725,10 +1726,10 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
             }
             if(success == false){
                 //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<q<<x;
-                if(getFirstValueFromTop(thinSurface,X)!=getFirstValueFromBottom(thinSurface,X)){
-                    QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(thinSurface,X), X, getFirstValueFromBottom(thinSurface,X));
+                if(surfacePoints[X].yEntry!=surfacePoints[X].yExit){
+                    QVector<double> surfaceVector = parameterizeFromPoints(X, surfacePoints[X].yEntry, X, surfacePoints[X].yExit);
                     QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                    if(intersection[1]>=getFirstValueFromTop(thinSurface,X)&&intersection[1]<=getFirstValueFromBottom(thinSurface,X)){
+                    if(intersection[1]>=surfacePoints[X].yEntry&&intersection[1]<=surfacePoints[X].yExit){
                         //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
                         myPoint.lengthEntry = intersection[2];
                         myPoint.yExit = intersection[1];
@@ -1736,7 +1737,7 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
                     }
                 }
                 while(success == false && X>=xEntry){
-                    QVector<double> surfaceVector = parameterizeFromPoints(X-1, getFirstValueFromTop(thinSurface,X-1), X, getFirstValueFromTop(thinSurface,X));
+                    QVector<double> surfaceVector = parameterizeFromPoints(X-1, surfacePoints[X-1].yEntry, X, surfacePoints[X].yEntry);
                     QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                     if(intersection[0]>=X-1&&intersection[0]<X){
                         myPoint.lengthEntry = intersection[2];
@@ -1751,8 +1752,8 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
         }else if(myPoint.gammaEntry<0&&myPoint.gammaEntry>-1.0){  //Strahl wird nach links abgelenkt
             int X=xEntry;
             bool success = false;
-            while(success == false && getFirstValueFromBottom(thinSurface,X-1) > 0){
-                QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromBottom(thinSurface,X), X-1, getFirstValueFromBottom(thinSurface,X-1));
+            while(success == false && surfacePoints[X-1].yExit > 0){
+                QVector<double> surfaceVector = parameterizeFromPoints(X, surfacePoints[X].yExit, X-1, surfacePoints[X-1].yExit);
                 QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                 if(intersection[0]<=X&&intersection[0]>X-1){
                     myPoint.lengthEntry = intersection[2];
@@ -1764,10 +1765,10 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
             }
             if(success == false){
                 //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<q<<x;
-                if(getFirstValueFromTop(thinSurface,X)!=getFirstValueFromBottom(thinSurface,X)){
-                    QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(thinSurface,X), X, getFirstValueFromBottom(thinSurface,X));
+                if(surfacePoints[X].yEntry!=surfacePoints[X].yExit){
+                    QVector<double> surfaceVector = parameterizeFromPoints(X, surfacePoints[X].yEntry, X, surfacePoints[X].yExit);
                     QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
-                    if(intersection[1]>=getFirstValueFromTop(thinSurface,X)&&intersection[1]<=getFirstValueFromBottom(thinSurface,X)){
+                    if(intersection[1]>=surfacePoints[X].yEntry&&intersection[1]<=surfacePoints[X].yExit){
                         //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
                         myPoint.lengthEntry = intersection[2];
                         myPoint.yExit = intersection[1];
@@ -1775,7 +1776,7 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
                     }
                 }
                 while(success == false && X<=xEntry){
-                    QVector<double> surfaceVector = parameterizeFromPoints(X, getFirstValueFromTop(thinSurface,X), X+1, getFirstValueFromTop(thinSurface,X+1));
+                    QVector<double> surfaceVector = parameterizeFromPoints(X, surfacePoints[X].yEntry, X+1, surfacePoints[X+1].yEntry);
                     QVector<double> intersection = getIntersectionPoint(rayVector,surfaceVector);
                     if(intersection[0]>=X&&intersection[0]<X+1){
                         myPoint.lengthEntry = intersection[2];
@@ -1795,32 +1796,135 @@ QVector<double> surface_fitting_test::getBackExitPointAndAngle(QImage surface, i
             return {double(xEntry),0,-1};
         }*/
 
-    myPoint.xExit = xEntry + myPoint.lengthEntry*qSin(myPoint.gammaEntry) - firstIndexFromLeft; //firstIndexFromLeft added.
+        myPoint.xExitRelative = myPoint.lengthEntry*qSin(myPoint.gammaEntry);
 
-    //myPoint.xExit = myPoint.lengthEntry*qSin(myPoint.gammaEntry);
+        //myPoint.xExit = myPoint.lengthEntry*qSin(myPoint.gammaEntry);
 
-    double exitSlope = getPolySlopeAtExit(surface,std::round(myPoint.xExit))[0];
+        double exitSlope = surfacePoints[std::round(myPoint.xExitRelative+xEntry)].slopeExit;
 
-    double backExitAngle = getExitAngleAtBack(exitSlope,samplRi,mediaRI,myPoint.gammaEntry);
+        double backExitAngle = getExitAngleAtBack(exitSlope,samplRi,mediaRI,myPoint.gammaEntry);
 
-    return {myPoint.xExit, myPoint.yExit, backExitAngle};
-}else{
-        qDebug()<<"Kein Plan was jetzt passiert ist";
-        return {double(xEntry),0,0};
+        return {myPoint.xExitRelative, myPoint.yExit, backExitAngle};
+    }else{
+        qDebug()<<"Gab kein Y Entry";
+        return {double(xEntry),0,2};
     }
 }
-QVector<double> surface_fitting_test::generateRefractionPattern(QImage surface, double mediaRI, double sampleRI)
+QVector<double> surface_fitting_test::generateRefractionPattern(QVector<entryPoint> surfacePoints, double mediaRI, double sampleRI) //Nur für die Punkte, die auf die Probe treffen
 {
-    QVector<double> pattern = QVector<double>(surface.width());
-    for(int x = 0; x<=surface.width(); x++){
-        QVector<double> exit = getBackExitPointAndAngle(surface,x,mediaRI,sampleRI);
-        //qDebug()<<"Ausgangspunkt aus Probe in mm"<<mmPerPixelInReco*exit[1];
-        pattern[x]=calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
-        if(exit[2]==-1||exit[2]==1){
-            qDebug()<<"Strahl wurde totalreflektiert beim pattern-gen";
+    QVector<double> pattern(surfacePoints.size()+2);
+    pattern[0]=-mmPerPixelInReco; //Punkt ganz links neben der Probe
+    pattern.last()=(pattern.size()-2)*mmPerPixelInReco; //Punkt ganz rechts neben der Probe
+    for(int x = 0; x<surfacePoints.size();x++){
+        surfacePoints[x].gammaEntry = getExitAngle(surfacePoints[x].slopeEntry,mediaRI,sampleRI);
+        QVector<double> rayVector = parameterizeFromAngleStatic(x,surfacePoints[x].yEntry,surfacePoints[x].gammaEntry);
+        if(surfacePoints[x].gammaEntry>=0&&surfacePoints[x].gammaEntry<1.0){  //Strahl wird nach rechts abgelenkt
+            int X=x;
+            bool success = false;
+            while(success == false && surfacePoints[X+1].yExit>0){ //kann sein, dass es hier abkackt, weil irgendwann kein X+1 mehr existiert
+                QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yExit, X+1, surfacePoints[X+1].yExit);
+                QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                if(intersection[0]>=X&&intersection[0]<X+1){
+                    surfacePoints[x].lengthEntry = intersection[2];
+                    surfacePoints[x].yExit = intersection[1];
+                    success = true;
+                }else{
+                    X++;
+                }
+            }
+            if(success == false){
+                //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<k<<x;
+                if(surfacePoints[X].yEntry!=surfacePoints[X].yExit){
+                    QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yEntry, X, surfacePoints[X].yExit);
+                    QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                    if(intersection[1]>=surfacePoints[X].yEntry&&intersection[1]<=surfacePoints[X].yExit){
+                        //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                        surfacePoints[x].lengthEntry = intersection[2];
+                        surfacePoints[x].yExit = intersection[1];
+                        success = true;
+                    }
+                }
+                while(success == false && X>=x){
+                    QVector<double> surfaceVector = parameterizeFromPointsStatic(X-1, surfacePoints[X-1].yEntry, X, surfacePoints[X].yEntry);
+                    QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                    if(intersection[0]>=X-1&&intersection[0]<X){
+                        surfacePoints[x].lengthEntry = intersection[2];
+                        surfacePoints[x].yExit = intersection[1];
+                        //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                        success = true;
+                    }else{
+                        X--;
+                    }
+                }
+            }
+        }else if(surfacePoints[x].gammaEntry<0&&surfacePoints[x].gammaEntry>-1.0){  //Strahl wird nach links abgelenkt
+            int X=x;
+            bool success = false;
+            while(success == false && surfacePoints[X-1].yExit > 0){ //hier auch problem mit nicht existierenden werten maybe
+                QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yExit, X-1, surfacePoints[X-1].yExit);
+                QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                if(intersection[0]<=X&&intersection[0]>X-1){
+                    surfacePoints[x].lengthEntry = intersection[2];
+                    surfacePoints[x].yExit = intersection[1];
+                    success = true;
+                }else{
+                    X--;
+                }
+            }
+            if(success == false){
+                //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<k<<x;
+                if(surfacePoints[X].yEntry!=surfacePoints[X].yExit){
+                    QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yEntry, X, surfacePoints[X].yExit);
+                    QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                    if(intersection[1]>=surfacePoints[X].yEntry&&intersection[1]<=surfacePoints[X].yExit){
+                        //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                        surfacePoints[x].lengthEntry = intersection[2];
+                        surfacePoints[x].yExit = intersection[1];
+                        success = true;
+                    }
+                }
+                while(success == false && X<=x){
+                    QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yEntry, X+1, surfacePoints[X+1].yEntry);
+                    QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                    if(intersection[0]>=X&&intersection[0]<X+1){
+                        surfacePoints[x].lengthEntry = intersection[2];
+                        surfacePoints[x].yExit = intersection[1];
+                        //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                        success = true;
+                    }else{
+                        X++;
+                    }
+                }
+            }
+        }else{
+            qDebug()<<"Strahl wurde total reflektiert! oder so"<<x;
         }
+
+        if(surfacePoints[x].lengthEntry<0){
+            surfacePoints[x].lengthEntry=0;
+            qDebug()<<"irgendwas schiefgelaufen beim rayPropagate";
+        }
+        //jetzt noch den Teil mit der Rückseite berechnen
+        surfacePoints[x].xExitRelative = surfacePoints[x].lengthEntry*qSin(surfacePoints[x].gammaEntry);
+        surfacePoints[x].xExit = surfacePoints[x].xExitRelative+surfacePoints[x].xEntry;
+        //qDebug()<<"Winkel nach Eintritt in die Probe:"<<surfacePoints[x].gammaEntry;
+
+        //qDebug()<<"Relativer Versatz in X: "<< surfacePoints[x].xExitRelative<<"Beim xEntry von"<<surfacePoints[x].xEntry ;
+
+        double exitSlope = surfacePoints[std::round(surfacePoints[x].xExit)].slopeExit;
+
+        //qDebug()<<"Steigung am Austrittspunkt:" <<exitSlope;
+
+        double backExitAngle = getExitAngleAtBack(exitSlope,sampleRI,mediaRI,surfacePoints[x].gammaEntry);
+
+        //qDebug()<<"Winkel nach Austrittspunkt: " << backExitAngle;
+
+        pattern[x+1] = calculateRelativCameraOffset(mediaRI,surfacePoints[x].yExit*mmPerPixelInReco,surfacePoints[x].xExit*mmPerPixelInReco,backExitAngle); //Mal wieder ein Problem mit dem Vorzeichen?
+
+        //qDebug()<<"Versatz auf Kamera:"<<pattern[x+1];
     }
-    qDebug()<<pattern;
+
+
     return pattern;
 }
 
@@ -1860,29 +1964,48 @@ QVector<refraction::imageMoments> surface_fitting_test::shortenMomentsList(QVect
 
 void surface_fitting_test::determineTeleError(QVector<refraction::imageMoments > moments)
 {
-    int scanPoints = moments.size();
-    qDebug()<<scanPoints;
+    scanPointsCCD = moments.size();
+    qDebug()<<scanPointsCCD;
     qDebug()<<"Hardgecodeter Offset Per Pixel auf Sensor: "<<mmPerPixelOnSensor;
     //Ablenkung in Probe und Ablenkung auf Sensor vergleichen
-
-    double relativeScanMovementInSample = (getFirstIndexFromRight(inputSurface)-getFirstIndexFromLeft(inputSurface))*mmPerPixelInReco;
+    firstIndexFromLeft = getFirstIndexFromLeft(inputSurface);
+    firstIndexFromRight = getFirstIndexFromRight(inputSurface);
+    sampleSizePixel = (firstIndexFromRight-firstIndexFromLeft);
+    double relativeScanMovementInSample = sampleSizePixel*mmPerPixelInReco;
     qDebug()<<"Der Laser wurde in der Probe um "<<relativeScanMovementInSample<<" in x-Richtung bewegt";
-    double relativeScanMovementOnSensor = (moments[scanPoints-1].momentX - moments[0].momentX)*mmPerPixelOnSensor;
-    qDebug()<<"Der Laser wurde in der auf dem Sensor um "<<relativeScanMovementOnSensor<<" in x-Richtung bewegt";
-    correctedSensorRatio = relativeScanMovementInSample/std::abs(moments[scanPoints-1].momentX - moments[0].momentX);
+    double relativeScanMovementOnSensor = std::abs(moments.last().momentX - moments[0].momentX);
+    qDebug()<<"Der Laser wurde auf dem Sensor um "<<relativeScanMovementOnSensor<<" in x-Richtung bewegt";
+    correctedSensorRatio = relativeScanMovementInSample/relativeScanMovementOnSensor;
     qDebug()<<"Echte Ratio aufm Sensor: "<<mmPerPixelOnSensor;
     qDebug()<<"Korrigierte Ratio aufm Sensor: "<<correctedSensorRatio;
 }
 
 QVector<refraction::imageMoments> surface_fitting_test::makeListRelativeAndScaled(QVector<refraction::imageMoments> moments)
 {
-    double offset = moments[0].momentX;
+    double sampleSizeInMm = sampleSizePixel*mmPerPixelInReco;
+    qDebug()<<"Sample Size in MM "<<sampleSizeInMm;
+    double offset = moments[0].momentX; //+std::abs(moments[0].momentX-moments.last().momentX)/double(moments.size());
+    qDebug()<< "Offset des ersten Punkts "<<offset;
     for(int x = 0; x<moments.size();x++){
-        //qDebug()<<"Nicht-skalierter Versatz:"<<x<<moments[x].momentX - offset;
-        moments[x].momentX = (moments[x].momentX - offset)*correctedSensorRatio;
-        //qDebug()<<"Skalierter und relativierter Versatz für Punkt "<<x<<"ist: "<<moments[x].momentX;
+        moments[x].momentX = (moments[x].momentX - offset)*correctedSensorRatio - x*sampleSizeInMm/(moments.size()-1);
+        qDebug()<<" Relativer Versatz: " << moments[x].momentX;
     }
     return moments;
+}
+
+QVector<surface_fitting_test::entryPoint> surface_fitting_test::calculateAllSlopes(QImage surface) //hier läuft noch alles korrekt
+{
+    //alles auf "Pixelebene und der linke Punkt ist der Nullpunkt"
+    QVector<entryPoint> list(sampleSizePixel);
+    for(int x = 0; x<sampleSizePixel;x++){
+        list[x].xEntry = x;
+        list[x].yEntry = getPolySlopeAtEntryQt(surface,x+firstIndexFromLeft,fitOrder,true)[1];
+        list[x].slopeEntry = getPolySlopeAtEntryQt(surface,x+firstIndexFromLeft,fitOrder,true)[0];
+        list[x].yExit = getPolySlopeAtExitQt(surface,x+firstIndexFromLeft,fitOrder,true)[1];
+        list[x].slopeExit = getPolySlopeAtExitQt(surface,x+firstIndexFromLeft,fitOrder,true)[0];
+        //qDebug()<<"Punkt slope: "<<x << list[x].slopeExit << "yExit: " <<list[x].yExit;
+    }
+    return list;
 }
 
 QVector<refraction::imageMoments> surface_fitting_test::swapOrder(QVector<refraction::imageMoments> moments)
@@ -1894,43 +2017,153 @@ QVector<refraction::imageMoments> surface_fitting_test::swapOrder(QVector<refrac
     return returnMoments;
 }
 
-double surface_fitting_test::getFittingSampleRI(QImage surface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset)
+double surface_fitting_test::determineRelativeCameraOffset(QVector<surface_fitting_test::entryPoint> surfacePoints, int xEntry, double mediumRI, double sampleRI)
 {
-    // xEntry ist Pixel in Surface Bild, xCameraPoint ist relative (zur Startposition) mm Position auf der Kamera
-    //double mmPerPixel = 0.01;
-    double currTestRi = expectedSampleRI - riRange;
-    double smallestDeviation = 100;
-    double fittingRi = 333;
-    if(getFirstValueFromTop(surface,xEntry)==0){
-        return 999;
-    }
-    double entrySlope = getPolySlopeAtEntryQt(surface,xEntry,fitOrder,true)[0];
-    if(entrySlope==0){
-        double exitSlope = getPolySlopeAtExitQt(surface,xEntry,fitOrder,true)[0];
-        if(exitSlope==0){
-            return 777;
-        }
-    }
-    while(currTestRi <=expectedSampleRI+riRange){
-        QVector<double> exit = getBackExitPointAndAngle(surface,xEntry,mediaRI,currTestRi); // alles in pixel
-        //qDebug()<<"Ausgangpunkt aus Probe in mm "<<mmPerPixelInReco*exit[1];
-        if(exit[2]>-1&&exit[2]<1){
-            double cameraPoint =calculateCameraPoint(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
-            if(std::abs(cameraPoint-xCameraPoint)<smallestDeviation){
-                fittingRi = currTestRi;
-                smallestDeviation = std::abs(cameraPoint-xCameraPoint);
+    entryPoint mypoint = surfacePoints[xEntry];
+    mypoint.yExit = 0;
+    mypoint.lengthEntry = 0;
+    mypoint.xExit = 0;
+    mypoint.gammaEntry = getExitAngle(surfacePoints[xEntry].slopeEntry,mediumRI,sampleRI);
+    QVector<double> rayVector = parameterizeFromAngleStatic(xEntry,surfacePoints[xEntry].yEntry,mypoint.gammaEntry);
+    if(mypoint.gammaEntry>=0&&mypoint.gammaEntry<1.0){  //Strahl wird nach rechts abgelenkt
+        int X=xEntry;
+        bool success = false;
+        while(success == false && surfacePoints[X+1].yExit>0){ //kann sein, dass es hier abkackt, weil irgendwann kein X+1 mehr existiert
+            QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yExit, X+1, surfacePoints[X+1].yExit);
+            QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+            if(intersection[0]>=X&&intersection[0]<X+1){
+                mypoint.lengthEntry = intersection[2];
+                mypoint.yExit = intersection[1];
+                success = true;
+            }else{
+                X++;
             }
+        }
+        if(success == false){
+            //qDebug()<<"Strahl wurde nach rechts abgelenkt und fand keine Rückseite bei: "<<k<<x;
+            if(surfacePoints[X].yEntry!=surfacePoints[X].yExit){
+                QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yEntry, X, surfacePoints[X].yExit);
+                QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                if(intersection[1]>=surfacePoints[X].yEntry&&intersection[1]<=surfacePoints[X].yExit){
+                    //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                    mypoint.lengthEntry = intersection[2];
+                    mypoint.yExit = intersection[1];
+                    success = true;
+                }
+            }
+            while(success == false && X>=xEntry){
+                QVector<double> surfaceVector = parameterizeFromPointsStatic(X-1, surfacePoints[X-1].yEntry, X, surfacePoints[X].yEntry);
+                QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                if(intersection[0]>=X-1&&intersection[0]<X){
+                    mypoint.lengthEntry = intersection[2];
+                    mypoint.yExit = intersection[1];
+                    //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                    success = true;
+                }else{
+                    X--;
+                }
+            }
+        }
+    }else if(mypoint.gammaEntry<0&&mypoint.gammaEntry>-1.0){  //Strahl wird nach links abgelenkt
+        int X=xEntry;
+        bool success = false;
+        while(success == false && surfacePoints[X-1].yExit > 0){ //hier auch problem mit nicht existierenden werten maybe
+            QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yExit, X-1, surfacePoints[X-1].yExit);
+            QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+            if(intersection[0]<=X&&intersection[0]>X-1){
+                mypoint.lengthEntry = intersection[2];
+                mypoint.yExit = intersection[1];
+                success = true;
+            }else{
+                X--;
+            }
+        }
+        if(success == false){
+            //qDebug()<<"Strahl wurde nach links abgelenkt und fand keine Rückseite bei: "<<k<<x;
+            if(surfacePoints[X].yEntry!=surfacePoints[X].yExit){
+                QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yEntry, X, surfacePoints[X].yExit);
+                QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                if(intersection[1]>=surfacePoints[X].yEntry&&intersection[1]<=surfacePoints[X].yExit){
+                    //qDebug()<<"Strahl hat zwischen oben und unten Partner gefunden!";
+                    mypoint.lengthEntry = intersection[2];
+                    mypoint.yExit = intersection[1];
+                    success = true;
+                }
+            }
+            while(success == false && X<=xEntry){
+                QVector<double> surfaceVector = parameterizeFromPointsStatic(X, surfacePoints[X].yEntry, X+1, surfacePoints[X+1].yEntry);
+                QVector<double> intersection = getIntersectionPointStatic(rayVector,surfaceVector);
+                if(intersection[0]>=X&&intersection[0]<X+1){
+                    mypoint.lengthEntry = intersection[2];
+                    mypoint.yExit = intersection[1];
+                    //qDebug()<<"Strahl hat auf Oberseite Parter gefunden";
+                    success = true;
+                }else{
+                    X++;
+                }
+            }
+        }
+    }else{
+        //qDebug()<<"Strahl wurde total reflektiert! oder so"<<xEntry;
+        return -300;
+    }
+
+    //jetzt noch den Teil mit der Rückseite berechnen
+    mypoint.xExitRelative = mypoint.lengthEntry*qSin(mypoint.gammaEntry);
+    mypoint.xExit = mypoint.xExitRelative+mypoint.xEntry;
+    //qDebug()<<"Winkel nach Eintritt in die Probe:"<<mypoint.gammaEntry;
+
+    //qDebug()<<"Relativer Versatz in X: "<< surfacePoints[x].xExitRelative<<"Beim xEntry von"<<surfacePoints[x].xEntry ;
+
+    double exitSlope = surfacePoints[std::round(mypoint.xExitRelative+mypoint.xEntry)].slopeExit;
+
+    //qDebug()<<"Steigung am Austrittspunkt:" <<exitSlope << mypoint.xExit;
+
+    double backExitAngle = getExitAngleAtBack(exitSlope,sampleRI,mediumRI,mypoint.gammaEntry);
+
+    //qDebug()<<"Winkel nach Austrittspunkt: " << backExitAngle;
+
+    double cameraOffset = calculateRelativCameraOffset(mediumRI,mypoint.yExit*mmPerPixelInReco,mypoint.xExitRelative*mmPerPixelInReco,backExitAngle); //Mal wieder ein Problem mit dem Vorzeichen?
+
+    return cameraOffset;
+}
+
+QVector<double> surface_fitting_test::getFittingSampleRI(QVector<surface_fitting_test::entryPoint> surfacePoints, int xEntry, double relativeCameraOffset, double mediumRI, double expSampleRI, double riRange, double riIncriment, double excaptableOffset)
+{
+    double currTestRi = expSampleRI - riRange;
+    double smallestDeviation = 500;
+    double fittingRi = 333;
+    while(currTestRi <=expSampleRI+riRange){
+        double simulatedCameraPoint = determineRelativeCameraOffset(surfacePoints,xEntry,mediumRI,currTestRi);
+//        qDebug()<<"Simulated CameraPoint: "<<simulatedCameraPoint;
+//        qDebug()<<"relative Camera Offset: "<<relativeCameraOffset;
+//        qDebug()<<"Absolut Difference: "<<std::abs(relativeCameraOffset-simulatedCameraPoint);
+        if(std::abs(relativeCameraOffset-simulatedCameraPoint)<smallestDeviation){
+            fittingRi = currTestRi;
+            smallestDeviation = std::abs(relativeCameraOffset-simulatedCameraPoint);
         }
         currTestRi = currTestRi + riIncriment;
     }
-    if(smallestDeviation<exceptableOffset){
-        qDebug()<<"Smallest Deviation von "<<xEntry<<smallestDeviation;
-
-        return fittingRi;
+//    while(currTestRi <=expectedSampleRI+riRange){
+//        QVector<double> exit = getBackExitPointAndAngle(surfacePointsRefraction,xEntry,mediaRI,currTestRi); // alles in pixel; Ich glaube, der xEntry sollte nicht auf den exit aufaddiert werden
+//        //qDebug()<<"Ausgangpunkt aus Probe in mm "<<mmPerPixelInReco*exit[1];
+//        if(exit[2]>-1&&exit[2]<1){
+//            double cameraPoint =calculateRelativCameraOffset(mediaRI,mmPerPixelInReco*exit[1],mmPerPixelInReco*exit[0],exit[2]);
+//            if(std::abs(cameraPoint-xCameraPoint)<smallestDeviation){
+//                fittingRi = currTestRi;
+//                smallestDeviation = std::abs(cameraPoint-xCameraPoint);
+//            }
+//        }
+//        currTestRi = currTestRi + riIncriment;
+//    }
+    if(smallestDeviation<excaptableOffset){
+        qDebug()<<"Für inputX "<<xEntry<<"wurde folgender refractive index gefunden: "<<fittingRi<<"Bei einem smallest Deviation von " <<smallestDeviation;
+        return {fittingRi,smallestDeviation};
+    }else{
+        return {333,0};
     }
-    qDebug()<<"Erfolglos. Kleinster Offset:" <<smallestDeviation << "Und folgender RI: "<<fittingRi;
-    return 333;
 }
+
 
 void surface_fitting_test::saveInfoFile(QString name, QString savepath)
 {
@@ -2322,172 +2555,23 @@ void surface_fitting_test::on_spinBox_rotateDisplayImageBy_valueChanged(int arg1
     drawAndDisplaySlope(bufferImg,ui->spinBox_aScan->value(),slopevec[1],slopevec[0],20);
 }
 
-
-//void surface_fitting_test::on_pushButton_correctSinogram_clicked() //Funktion veraltet
-//{
-//    QElapsedTimer reTimer;
-//    reTimer.start();
-//    QImage rearrangedSinogram = QImage(sinogramHisto.size(),QImage::Format_Grayscale16);
-//    rearrangedSinogramFails = QImage(sinogramHisto.size(),QImage::Format_RGB16);
-//    rearrangedSinogramFails.fill(0);
-//    rearrangedSinogram.fill(0);
-//    int deltaProj;
-//    if(!QDir(inputPathSurface).exists()){
-//        QDir().mkdir(inputPathSurface);
-//    }
-//    QVector<QVector<int>> travelledOnBackside;
-//    for(int p = 0; p<numberOfProjections;p++){
-//        qDebug()<<"Correction started for: "<<p<<reTimer.elapsed();
-//        quint16 *dstArrSino = (quint16*)(rearrangedSinogram.bits()+p*rearrangedSinogram.bytesPerLine());
-//        for(int x = 0; x<inputSurface.width();x++){
-//            if(newRotatedEntryPoints[p][x].yEntry!=0){
-//                rearrangedSinogramFails.setPixelColor(x,p,Qt::white);
-//                if(newRotatedEntryPoints[p][x].gammaEntry==0){                                                          //bei senkrechten Strahlen wird nichts verschoben!
-//                    quint16 *dstSinoStraight = (quint16*)(sinogramHisto.bits()+p*sinogramHisto.bytesPerLine());
-//                    rearrangedSinogramFails.setPixelColor(x,p,Qt::gray);
-//                    dstArrSino[x]=dstSinoStraight[x];
-//                }else if(newRotatedEntryPoints[p][x].gammaEntry<0){            // Probe wird im Uhrzeigersinn gedreht, um Partner zu finden; x wird größer
-//                    QVector<double> newPos;
-//                    double theta = 0;
-//                    deltaProj = 0;
-//                    double gamma = 0;
-//                    bool searchDone = false;
-//                    while(searchDone==false){
-//                        deltaProj++;
-//                        theta = (2*M_PI/double(numberOfProjections))*deltaProj;
-//                        newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},theta,true);
-//                        if(deltaProj>150){
-//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkRed);
-//                            qDebug()<<"Punkt ist weggelaufen :"<<p<<x;
-//                            dstArrSino[x] = 0;
-//                            searchDone = true;
-//                        }
-//                        else if(riMedium<riSample && std::abs(linInterpolation(int(newPos[0]),int(newPos[0])+1,getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])),getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])+1),newPos[0])-newPos[1])>5){
-//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
-//                            //qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
-//                            qDebug()<<newRotatedEntryPoints[p][x].gammaEntry;
-//                            travelledOnBackside.append({p,x});
-//                            dstArrSino[x] = 0;
-//                            searchDone = true;
-//                        }
-//                        else if(std::abs(getFirstValueFromBottom(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],std::round(newPos[0]))-newPos[1])<5){
-//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::magenta);
-//                            reOrderSucceded = true;
-//                            qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
-//                            qDebug()<<rotatedEntryPoints[p][x];
-//                            dstArrSino[x] = 0;
-//                            searchDone = true;
-//                        }
-//                        else if(newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].lengthEntry!=0&&newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].lengthEntry!=0){
-//                            gamma = linInterpolation(int(newPos[0]),int(newPos[0])+1,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].gammaEntry,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].gammaEntry,newPos[0]);
-//                            if(theta >= std::abs(gamma)){
-//                                newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},-gamma,true);
-//                                double value = bilinInterpolFromSinogram(sinogramHisto,newPos[0],-gamma,p,deltaProj);
-//                                if(value<0){
-//                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::cyan);
-//                                    qDebug()<<"Wert war unter Null bei: "<<p<<x;
-//                                    value=0;
-//                                }else if(value>65000){
-//                                    value=65000;
-//                                    qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
-//                                }else{
-//                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::darkBlue);
-//                                }
-//                                dstArrSino[x] = value;
-//                                searchDone = true;
-//                            }
-//                        }
-//                    }
-//                }else if(newRotatedEntryPoints[p][x].gammaEntry>0){
-//                    QVector<double> newPos;
-//                    double theta = 0;
-//                    deltaProj = 0;
-//                    double gamma = 0;
-//                    bool searchDone = false;
-//                    while(searchDone==false){
-//                        deltaProj--;
-//                        theta = (2*M_PI/double(numberOfProjections))*deltaProj;
-//                        newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},theta,true);
-//                        if(std::abs(deltaProj)>150){
-//                            qDebug()<<"Punkt ist weggelaufen :"<<p<<x;
-//                            dstArrSino[x] = 0;
-//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::red);
-//                            searchDone = true;
-//                        }
-//                        else if(riMedium<riSample&&std::abs(linInterpolation(int(newPos[0]),int(newPos[0])+1,getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])),getFirstValueFromTop(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],int(newPos[0])+1),newPos[0])-newPos[1])>5){
-//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
-//                            //qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
-//                            qDebug()<<newRotatedEntryPoints[p][x].yEntry;
-//                            travelledOnBackside.append({p,x});
-//                            dstArrSino[x] = 0;
-//                            searchDone = true;
-//                        }
-//                        else if(std::abs(getFirstValueFromBottom(rotatedSurfacesThinnedOut[(p+deltaProj+numberOfProjections)%numberOfProjections],std::round(newPos[0]))-newPos[1])<5){
-//                            rearrangedSinogramFails.setPixelColor(x,p,Qt::darkMagenta);
-//                            qDebug()<<"Punkt auf Rückseite gelandet :"<<p<<x;
-//                            qDebug()<<rotatedEntryPoints[p][x];
-//                            reOrderSucceded = true;
-//                            dstArrSino[x] = 0;
-//                            searchDone = true;
-//                        }
-//                        else if(newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].lengthEntry!=0&&newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].lengthEntry!=0){
-//                            gamma = linInterpolation(int(newPos[0]),int(newPos[0])+1,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])].gammaEntry,newRotatedEntryPoints[(p+deltaProj+numberOfProjections)%numberOfProjections][int(newPos[0])+1].gammaEntry,newPos[0]);
-//                            if(std::abs(theta) >= std::abs(gamma)){
-//                                newPos = rotateImagePointTo({double(x),newRotatedEntryPoints[p][x].yEntry},{double(inputSurface.width()/2.0),double(inputSurface.height()/2.0)},-gamma,true);
-//                                double value = bilinInterpolFromSinogram(sinogramHisto,newPos[0],-gamma,p,deltaProj);
-//                                if(value<0){
-//                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::darkCyan);
-//                                    qDebug()<<"Wert war unter Null bei: "<<p<<x;
-//                                    value=0;
-//                                }else if(value>65000){
-//                                    value=65000;
-//                                    qDebug()<<"Wert aus Sinograminterpolation war zu hoch";
-//                                }else{
-//                                    rearrangedSinogramFails.setPixelColor(x,p,Qt::green);
-//                                }
-//                                dstArrSino[x] = value;
-//                                searchDone = true;
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    } //Am Ende noch die letzten beiden Zeilen aus der ersten kopieren
-//    quint16 *dstArrSinoBot = (quint16*)(rearrangedSinogram.bits()+numberOfProjections*rearrangedSinogram.bytesPerLine());
-//    quint16 *dstArrSinoTop = (quint16*)(rearrangedSinogram.bits());
-//    for(int x = 0;x<sinogramHisto.width();x++){
-//        dstArrSinoBot[x] = dstArrSinoTop[x];
-//    }
-//    quint16 *dstArrSinoBot2 = (quint16*)(rearrangedSinogram.bits()+(numberOfProjections+1)*rearrangedSinogram.bytesPerLine());
-//    for(int x = 0;x<sinogramHisto.width();x++){
-//        dstArrSinoBot2[x] = dstArrSinoTop[x];
-//    }
-//    for(int r = 0;r<travelledOnBackside.size();r++){ // Wenn Punkte bei Korrektur auf die Rückseite gewandert sind, wird hier der Wert "von der anderen Seite" kopiert
-//        int fromX = inputHisto.width()-travelledOnBackside[r][1]-1;
-//        quint16 *dstArrSinoSource = (quint16*)(rearrangedSinogram.bits()+((travelledOnBackside[r][0]+numberOfProjections/2)%numberOfProjections)*rearrangedSinogram.bytesPerLine());
-//        quint16 *dstArrSinoFailed = (quint16*)(rearrangedSinogram.bits()+(travelledOnBackside[r][0])*rearrangedSinogram.bytesPerLine());
-//        if(dstArrSinoSource[fromX]!=0){
-//            rearrangedSinogramFails.setPixelColor(travelledOnBackside[r][1],travelledOnBackside[r][0],Qt::yellow);
-//            dstArrSinoFailed[travelledOnBackside[r][1]] = dstArrSinoSource[fromX];
-//        }
-//    }
-//    rearrangedSinogramFails.save(inputPathSurface+"\\"+nameRI+nrOfProjString+"_sinogramRearrangedFails.png");
-//    rearrangedSinogram.save(inputPathSurface+"\\"+nameRI+nrOfProjString+"_sinogramRearranged.png");
-//    rearrangedSinogramFails.fill(0);
-//}
-
 void surface_fitting_test::on_pushButton_testMath_clicked()
 {
     firstIndexFromLeft = getFirstIndexFromLeft(inputSurface);
     firstIndexFromRight = getFirstIndexFromRight(inputSurface);
-    QVector<double> pattern = generateRefractionPattern(inputSurface,ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value());
-    momentsList.clear();
-    momentsList.resize(pattern.size());
-    for(int i = 0; i<pattern.size();i++){
-        momentsList[i].momentX=pattern[i]*2;
-        momentsList[i].graySum = 100;
-    }
+    sampleSizePixel = firstIndexFromRight-firstIndexFromLeft;
+
+    surfacePointsRefraction = calculateAllSlopes(inputSurface);
+
+//    QVector<double> pattern = generateRefractionPattern(surfacePointsRefraction,riMedium,riSample);
+//    momentsList.clear();
+//    momentsList.resize(pattern.size());
+//    for(int i = 0; i<pattern.size();i++){
+//        momentsList[i].momentX=pattern[i]*3.5+20;
+//        momentsList[i].graySum = 100;
+//    }qDebug()<<"Das generierte Pattern ist:" << pattern;
+
+
     momentsList = shortenMomentsList(momentsList);
     determineTeleError(momentsList);
     momentsList = makeListRelativeAndScaled(momentsList);
@@ -2495,14 +2579,23 @@ void surface_fitting_test::on_pushButton_testMath_clicked()
     //hier muss der äußere Wert links und rechts im Surface-Bild bestimmt werden, der auf die Probe trifft
 
     qDebug()<<"Index links: "<<firstIndexFromLeft<<"Index rechts: "<<firstIndexFromRight;
-    deltaPixel = (firstIndexFromRight-firstIndexFromLeft)/double(momentsList.size()-3);
-    qDebug()<<"Delta pixel beträgt:"<<deltaPixel;
-    //dann muss die Spanne dieser Werte durch die momentsList.size-2 geteilt werden, damit man den
-    for (int x = 1; x<momentsList.size()-1;x++){
-        fittedRI[x] = getFittingSampleRI(inputSurface,firstIndexFromLeft+std::round((x-1)*deltaPixel),momentsList[x].momentX,ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.02,0.001,2);
-        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
-        //qDebug()<<"Offset für diesen Strahl ist:"<<momentsList[x].momentX;
-        //qDebug()<<"Pixel im Bild: " << firstIndexFromLeft + std::round((x-1)*deltaPixel);
+    for(int i = 0; i<momentsList.size();i++){
+        qDebug()<<"Moment ist: "<<momentsList[i].momentX;
+    }
+//    deltaPixel = (firstIndexFromRight-firstIndexFromLeft)/double(momentsList.size()-3);
+//    qDebug()<<"Delta pixel beträgt:"<<deltaPixel;
+//    //dann muss die Spanne dieser Werte durch die momentsList.size-2 geteilt werden, damit man den
+//    for (int x = 1; x<momentsList.size()-1;x++){
+//        fittedRI[x] = getFittingSampleRI(inputSurface,firstIndexFromLeft+std::round((x-1)*deltaPixel),momentsList[x].momentX,ui->doubleSpinBox_riMedium->value(),ui->doubleSpinBox_riSample->value(),0.02,0.001,2);
+//        qDebug()<<"Fitted RI für Strahl "<<x<<fittedRI[x];
+//        //qDebug()<<"Offset für diesen Strahl ist:"<<momentsList[x].momentX;
+//        //qDebug()<<"Pixel im Bild: " << firstIndexFromLeft + std::round((x-1)*deltaPixel);
+//    }
+
+
+    for(int x = 0;x<momentsList.size();x++){
+        QVector<double> buf = getFittingSampleRI(surfacePointsRefraction,4*x,momentsList[x].momentX,riMedium,riSample,riSearchRange,riSearchIncriment,riAcceptableOffset);
+        fittedRI[x]= buf[0];
     }
     qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
     fittedRI.removeAll(333);
@@ -2953,4 +3046,163 @@ void surface_fitting_test::on_pushButton_choosePdSinogram_clicked()
     fileListInfoSinogramPD = dir.entryInfoList();
     fileListInfoSinogramPD.removeFirst();
     fileListInfoSinogramPD.removeFirst();
+}
+
+void surface_fitting_test::on_pushButton_analyseCameraSlot_clicked()
+{
+    if(inputSurface.width()==0){
+        qDebug()<<"No reference Surface was loaded!!";
+        return;
+    }
+    if(momentsList.size()==0){
+        qDebug()<<"No Camera-SLOT Measurement was loaded!!";
+        return;
+    }
+
+    riSearchRange = ui->doubleSpinBox_riRange->value();
+    riSearchIncriment = ui->doubleSpinBox_searchIncriment->value();
+    riAcceptableOffset = ui->doubleSpinBox_riAcceptableOffset->value();
+    mmPerPixelInReco = ui->doubleSpinBox_mmPerPixelinReco->value();
+
+    firstIndexFromLeft = getFirstIndexFromLeft(inputSurface);
+    firstIndexFromRight = getFirstIndexFromRight(inputSurface);
+    sampleSizePixel = firstIndexFromRight-firstIndexFromLeft;
+
+    surfacePointsRefraction = calculateAllSlopes(inputSurface);
+
+    QVector<refraction::imageMoments> momentsTemp = momentsList;
+    momentsTemp = shortenMomentsList(momentsTemp);
+    determineTeleError(momentsTemp);
+    momentsTemp = makeListRelativeAndScaled(momentsTemp);
+    QVector<double> fittedRI(momentsTemp.size());
+    QVector<double> deviations(momentsTemp.size());
+    //hier muss der äußere Wert links und rechts im Surface-Bild bestimmt werden, der auf die Probe trifft
+
+    qDebug() << "SampleSize in Pixel: "<<sampleSizePixel<<"Momentslist.size: "<<momentsTemp.size() << "Faktor Pixel in Reco pro aufgenommenem Bild: "<<double(sampleSizePixel)/double(momentsTemp.size()-2);
+    for(int x = 1;x<momentsTemp.size()-1;x++){
+        int xInImage = std::round(double((x)*sampleSizePixel)/double(momentsTemp.size()-3)-double(sampleSizePixel)/double(momentsTemp.size()-2));
+        qDebug()<<"xInImage: "<<xInImage << x;
+        QVector<double> buf = getFittingSampleRI(surfacePointsRefraction,xInImage,momentsTemp[x].momentX,riMedium,riSample,riSearchRange,riSearchIncriment,riAcceptableOffset);
+        fittedRI[x]= buf[0];
+        deviations[x]=buf[1];
+    }
+    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
+    fittedRI.removeAll(333);
+    fittedRI.removeAll(777);
+    fittedRI.removeAll(0);
+    qDebug()<<fittedRI;
+    double sum=0;
+    double highestDeviation = 0;
+    for(int i = 0; i<fittedRI.size();i++){
+        sum = sum + fittedRI[i];
+        if(deviations[i]>highestDeviation){
+            highestDeviation=deviations[i];
+        }
+    }
+    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
+    qDebug()<<"Größte Abweichung war: " << highestDeviation;
+}
+
+void surface_fitting_test::on_doubleSpinBox_riRange_valueChanged(double arg1)
+{
+    riSearchRange = arg1;
+}
+
+void surface_fitting_test::on_doubleSpinBox_searchIncriment_valueChanged(double arg1)
+{
+    riSearchIncriment = arg1;
+}
+
+void surface_fitting_test::on_doubleSpinBox_riAcceptableOffset_valueChanged(double arg1)
+{
+    riAcceptableOffset = arg1;
+}
+
+void surface_fitting_test::on_doubleSpinBox_mmPerPixelinReco_valueChanged(double arg1)
+{
+    mmPerPixelInReco = arg1;
+}
+
+void surface_fitting_test::on_pushButton_saveCameraSlot_clicked()
+{
+    const QString folderpathSaveCCD = QFileDialog::getExistingDirectory(this,tr("Save Folder for CCD Analysis"),inputPathSurface);
+    QDir saveDirCCD(folderpathSaveCCD);
+    QString savePathCCD = saveDirCCD.absolutePath();
+    savePathCCD.append("/");
+    qDebug()<<savePathCCD;
+
+
+    QVector<refraction::imageMoments> momentsTemp = momentsList;
+    momentsTemp = shortenMomentsList(momentsTemp);
+    determineTeleError(momentsTemp);
+    momentsTemp = makeListRelativeAndScaled(momentsTemp);
+    QVector<double> fittedRI(momentsTemp.size());
+    QVector<double> deviations(momentsTemp.size());
+    //hier muss der äußere Wert links und rechts im Surface-Bild bestimmt werden, der auf die Probe trifft
+
+    qDebug() << "SampleSize in Pixel: "<<sampleSizePixel<<"Momentslist.size: "<<momentsTemp.size() << "Faktor Pixel in Reco pro aufgenommenem Bild: "<<double(sampleSizePixel)/double(momentsTemp.size()-2);
+    for(int x = 1;x<momentsTemp.size()-1;x++){
+        int xInImage = std::round(double((x)*sampleSizePixel)/double(momentsTemp.size()-3)-double(sampleSizePixel)/double(momentsTemp.size()-2));
+        qDebug()<<"xInImage: "<<xInImage << x;
+        QVector<double> buf = getFittingSampleRI(surfacePointsRefraction,xInImage,momentsTemp[x].momentX,riMedium,riSample,riSearchRange,riSearchIncriment,riAcceptableOffset);
+        fittedRI[x]= buf[0];
+    }
+    QVector <double> fittedRiCopy = fittedRI;
+    qDebug()<<"Punkte ohne Oberfläche entfernt "<<fittedRI.removeAll(999);
+    fittedRI.removeAll(333);
+    fittedRI.removeAll(777);
+    fittedRI.removeAll(0);
+    qDebug()<<fittedRI;
+    double sum=0;
+    for(int i = 0; i<fittedRI.size();i++){
+        sum = sum + fittedRI[i];
+        }
+
+    qDebug()<<"Durchschnittlicher Wert für RI Sample ist: "<<sum/fittedRI.size();
+
+    QTime now = QTime::currentTime();
+    if(!savePathCCD.endsWith("/")){
+        savePathCCD.append("/");
+    }
+    QString timestring = "hh_mm";
+    QString name = "Camera_SLOT_Analysis";
+    name.append("_").append(now.toString(timestring));
+    QFile file(savePathCCD + name + ".txt");
+    if(!file.open(QIODevice::ReadWrite)) {
+        qCritical()<<"Could not open file!";
+        qCritical()<<file.errorString();
+        return;
+    }
+
+    qInfo()<<"Writing Info file...";
+
+    QTextStream stream(&file);
+
+    //stream << "Das input Surface wurde geladen aus: "<<inputPathSurface<<"\n";
+    if(fileListInfoSurface.size()!=0){
+        stream << "Das input Surface wurde geladen aus: "<<fileListInfoSurface[0].absoluteFilePath()<<"\n";
+    }else{
+        stream << "Das input Surface wurde geladen aus: "<<inputPathSurface<<"\n";
+    }
+    stream << "Die Ordnung des Fits für die Oberfläche betrug: "<<fitOrder<<"\n";
+    stream << "Die Anzahl der seitlich berücksichtigten Nachbarn für den Fit betrug: "<<slopeSigmaMT<<"\n";
+    stream << "Für die Arithmetischen Mittel wurden so viele Folgepunkte beruecksichtigt: "<<arithMiddleSigma<<"\n";
+    stream << "Der Brechungsindex des Mediums war: " <<riMedium<<"\n";
+    stream << "Der Brechungsindex der Probe wurde gesucht um: " << riSample <<"\n";
+    stream << "Der Brechungsindex wurde mit folgendem Sigma gesucht: " << riSearchRange<<"\n";
+    stream << "Der Brechungsindex wurde mit folgender Schrittgroesse abgetastet: "<<riSearchIncriment<< "\n";
+    stream << "Folgende Ungenauigkeit wurde akzeptiert: "<<riAcceptableOffset<<"\n";
+    stream << "Folgende Brechungsindize wurden fuer jeweilige Bilder bestimmt: \n";
+    for(int i = 0;i<fittedRiCopy.size();i++){
+        if(fittedRiCopy[i]>=riMedium-riSearchRange&&fittedRiCopy[i]<=riMedium+riSearchRange){
+            stream << fittedRiCopy[i] << ";"<<i<<";\n";
+        }else{
+            stream << QString::number(0,1)<<";"<<i<<";\n";
+        }
+
+    }
+
+    //stream << "" << <<"\n";
+
+    file.close();
 }

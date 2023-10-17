@@ -65,6 +65,10 @@ class surface_fitting_test : public QWidget
          */
         double slopeEntry = 0;
         /**
+         * Steigung der Oberfläche am Austrittspunkt
+         */
+        double slopeExit = 0;
+        /**
           * Y-Koordinate am Austrittspunkt aus der Probe
           */
         double yExit = 0;
@@ -72,6 +76,10 @@ class surface_fitting_test : public QWidget
           * X-Koordinate am Austrittspunkt aus der Probe
           */
         double xExit = 0;
+        /**
+          * X-Koordinaten-Verschiebung am Austrittspunkt aus der Probe im Verhältnix zum Eintrittspunkt
+          */
+        double xExitRelative = 0;
     };
 
     struct newSurfaceInfo{
@@ -165,6 +173,18 @@ private slots:
 
     void on_pushButton_choosePdSinogram_clicked();
 
+    void on_pushButton_analyseCameraSlot_clicked();
+
+    void on_doubleSpinBox_riRange_valueChanged(double arg1);
+
+    void on_doubleSpinBox_searchIncriment_valueChanged(double arg1);
+
+    void on_doubleSpinBox_riAcceptableOffset_valueChanged(double arg1);
+
+    void on_doubleSpinBox_mmPerPixelinReco_valueChanged(double arg1);
+
+    void on_pushButton_saveCameraSlot_clicked();
+
 private:
     Ui::surface_fitting_test *ui;
     refraction *ref;
@@ -191,6 +211,8 @@ private:
     QImage bScan;
     int firstIndexFromLeft = 0;
     int firstIndexFromRight = 0;
+    int sampleSizePixel = 0;
+    int scanPointsCCD = 0;
     double deltaPixel = 0;
     bool createTransmission = 0;
     bool accountForReflection = 0;
@@ -203,9 +225,13 @@ private:
     signed rotateClockwise = 1;
     QImage rearrangedSinogramFails;
     double mmPerPixelOnSensor = 0.0031;
-    double mmPerPixelInReco = 0.00437;
+    double mmPerPixelInReco = 0.008765;
     double correctedSensorRatio;
     QVector<refraction::imageMoments> momentsList;
+    QVector<entryPoint> surfacePointsRefraction;
+    double riSearchRange = 0.02;
+    double riSearchIncriment = 0.001;
+    double riAcceptableOffset = 1.0;
 //    /**
 //     * Punkte für die der korrigierte Wert auf der Rückseite wäre, erster Eintrag Nummer der Projektion, zweiter Eintrag AScan der Projektion
 //     */
@@ -290,17 +316,25 @@ private:
     static QVector<double> parameterizeFromAngleStatic(double x, double y, double angle);
     static QVector<double> getIntersectionPointStatic(QVector<double> ray, QVector<double> surface);
     /**
-     * input in mm, output ist die relative verschiebung
+     * Berechnet den gesamten, relativen Offset in x-richtung auf der Kamera in mm, Input in mm
      */
-    double calculateCameraPoint(double mediumRI, double yExit, double xExit, double angleExit);
-    QVector<double> getBackExitPointAndAngle(QImage surface, int xEntry, double mediaRI, double samplRi);
-    QVector<double> generateRefractionPattern(QImage thinSurface, double mediaRI, double sampleRI);
+    double calculateRelativCameraOffset(double mediumRI, double yExit, double xExit, double angleExit);
+    QVector<double> getBackExitPointAndAngle(QVector<entryPoint> surfacePoints, int xEntry, double mediaRI, double samplRi);
+    QVector<double> generateRefractionPattern(QVector<entryPoint> surfacePoints, double mediaRI, double sampleRI);
     QVector<refraction::imageMoments> shortenMomentsList(QVector<refraction::imageMoments> moments);
     void determineTeleError(QVector<refraction::imageMoments> moments);
     QVector<refraction::imageMoments> makeListRelativeAndScaled(QVector<refraction::imageMoments> moments);
+    /**
+     * Berechnet alle Aussenpunkte und Steigungen, KEINE RAYPROPAGATION! alles auf Pixelebene der Rekonstruktion
+     */
+    QVector<entryPoint> calculateAllSlopes(QImage surface);
     QVector<refraction::imageMoments> swapOrder(QVector<refraction::imageMoments> moments);
-    double getFittingSampleRI(QImage thinSurface, int xEntry, double xCameraPoint, double mediaRI, double expectedSampleRI, double riRange, double riIncriment, double exceptableOffset);
-
+       /**
+     * @brief Berechnet den RI der Probe anhand der relativen Verschiebung des Kamerapunktes vom erwarteten Punkt bei RI match. xEntry ist der RELATIVE Eintrittspunkt des entsprechenden Kamera-punktes
+     * Relative Camera Offset ist die Ablenkung vom erwarteten Punkt
+     */
+    double determineRelativeCameraOffset(QVector<entryPoint> surfacePoints, int xEntry, double mediumRI, double sampleRI);
+    QVector<double> getFittingSampleRI(QVector<entryPoint> surfacePoints,int xEntry, double relativeCameraOffset, double mediumRI, double expSampleRI, double riRange, double riIncriment, double excaptableOffset);
     void saveInfoFile(QString name, QString savepath);
 public slots:
     void newNumber(QString name, int number, QString threadID);
