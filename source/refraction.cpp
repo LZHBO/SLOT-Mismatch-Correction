@@ -45,7 +45,7 @@ void refraction::on_pushButton_browse_clicked()
 
 void refraction::on_pushButton_loadStack_clicked()
 {
-    const QString folderpathGaussList = QFileDialog::getExistingDirectory(this,tr("Gauss Folder"),"G:/ccd-slot/HB1/2023_07_27/");
+    const QString folderpathGaussList = QFileDialog::getExistingDirectory(this,tr("Gauss Folder"),"G:/ccd-slot/MSQ_A3_ccd/2023_08_29/");
     QDir dir(folderpathGaussList);
     gaussList = dir.entryInfoList();
     while(!gaussList.first().absoluteFilePath().endsWith(".jpg")){
@@ -68,9 +68,16 @@ void refraction::on_pushButton_loadStack_clicked()
 //        momentsList[i]={mom.m10/mom.m00,mom.m01/mom.m00};
 //        cv::Point point = {int(momentsList[i][0]),int(momentsList[i][1])};
 //        cv::circle(weights,point,1,200,-1);
-        momentsList[i].momentX=mom.m10/mom.m00;
-        momentsList[i].momentY=mom.m01/mom.m00;
-        momentsList[i].graySum=mom.m00/100000;
+        if(mom.m00/100000>1){
+            momentsList[i].momentX=mom.m10/mom.m00;
+            momentsList[i].momentY=mom.m01/mom.m00;
+            momentsList[i].graySum=mom.m00/100000;
+        }else{
+            momentsList[i].momentX=1;
+            momentsList[i].momentY=1;
+            momentsList[i].graySum=1;
+        }
+
         qDebug()<<"Moment in X bei Bild "<<i+1<<mom.m10/mom.m00;
         qDebug()<<"Gesamtgrauwert des Bildes is: "<<mom.m00/100000;
     }

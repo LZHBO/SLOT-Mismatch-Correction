@@ -3217,7 +3217,7 @@ void surface_fitting_test::on_pushButton_saveCameraSlot_clicked()
     stream << "Aufbau der Tabelle: \n";
     stream << "Gefitteter RI; Grauwert des Punktes; Relative Ablenkung in X; Massenschwerpunkt Y; Bildnummer;\n ";
     for(int i = 0;i<fittedRiCopy.size();i++){
-        if(fittedRiCopy[i]>=riMedium-riSearchRange&&fittedRiCopy[i]<=riMedium+riSearchRange){
+        if(fittedRiCopy[i]>=riSample-riSearchRange&&fittedRiCopy[i]<=riSample+riSearchRange){
             stream << fittedRiCopy[i] << ";"<< momentsTemp[i].graySum << ";"<< momentsTemp[i].momentX<<";"<< momentsTemp[i].momentY<<";"<<i<<";\n";
         }else{
             stream << QString::number(0,1)<<";"<< momentsTemp[i].graySum <<";"<< momentsTemp[i].momentX<<";"<< momentsTemp[i].momentY<<";"<<i<<";\n";
