@@ -88,11 +88,6 @@ class surface_fitting_test : public QWidget
         QVector<entryPoint> ePoints;
     };
 
-//    struct imageMoments{
-//        double momentX = 0;
-//        double momentY = 0;
-//        double graySum = 0;
-//    };
 
 
 public:
@@ -120,8 +115,6 @@ private slots:
     void on_doubleSpinBox_riSample_valueChanged(double arg1);
 
     void on_spinBox_rotateDisplayImageBy_valueChanged(int arg1);
-
-//    void on_pushButton_correctSinogram_clicked();
 
     void on_pushButton_testMath_clicked();
 
@@ -247,33 +240,107 @@ private:
     QVector<QVector<entryPoint>>newRotatedEntryPoints;
     int numberOfProjections;
     QString nrOfProjString;
+
+    //Functions:
+    /**
+     *
+     */
     void displayImageLeft(QImage image);
+    /**
+     *
+     */
     double getArithmicMiddle(QVector<int> vec, int base, int integral);
+    /**
+     *
+     */
     QVector<int> fillVectorWithAscan(QImage image, int X);
+    /**
+     *
+     */
     int getColor(QImage image, int x, int y);
+    /**
+     *
+     */
     QImage setPixelColor8Bit(QImage image, int x, int y, int value, int bytesPerLine);
+    /**
+     *
+     */
     QVector<double> getSlopeAtEntry(QImage image, int X, int sigma);
+    /**
+     *
+     */
     QVector<double> getSlopeAtExit(QImage image, int X, int sigma);
+    /**
+     *
+     */
     double getDeltaThetaForPartner(double slope, double n1, double n2);
+    /**
+     *
+     */
     int getFirstValueFromTop(QImage image, int X);
+    /**
+     *
+     */
     int getFirstValueFromBottom(QImage image, int X);
+    /**
+     *
+     */
     int getFirstIndexFromLeft(QImage surface);
+    /**
+     *
+     */
     int getFirstIndexFromRight(QImage surface);
+    /**
+     *
+     */
     QImage thinOutSurface(QImage image);
+    /**
+     *
+     */
     QImage noiseBScan(QImage bScan, double noiseFactor);
+    /**
+     *
+     */
     QImage correctExternalSinogram(QImage sinogram, QImage surface, QString surfacePath, double mediumRI, double sampleRI);
+    /**
+     *
+     */
     bool correctExternalSinogramPDandPMT(QImage &sinogramPD, QImage &sinogramPMT, QImage &rearSinoPD, QImage &rearSinoPMT, QImage &surface, QString surfacePath, double mediumRI, double sampleRI);
+    /**
+     *
+     */
     void drawAndDisplaySlope(QImage image,int X, int Y, double slope, int width);
     /**
      * gibt Winkelabweichung von senkrechter Gerade in radiant wieder, input ist als Steigung deltaY/deltaX
      */
     double getExitAngle(double slope, double n1, double n2); //gibt die Winkelabweichung von der senkrechten Achse zurück
+    /**
+     *
+     */
     double getExitAngleAtBack(double slope, double nSample, double nMedium, double gamma);
+    /**
+     *
+     */
     double getValueForGaussDistribution(double gammaX, double gammaY, int x, int y, double sigma);
+    /**
+     *
+     */
     QVector<double> rotateImagePointTo(QVector<double> inputPoint, QVector<double> centerPoint, double rotationAngle, bool clockwise);
+    /**
+     *
+     */
     QVector<double> parameterizeFromPoints(double x1, double y1, double x2, double y2);
+    /**
+     *
+     */
     QVector<double> parameterizeFromAngle(double x, double y, double angle);
+    /**
+     *
+     */
     QVector<double> getIntersectionPoint(QVector<double> ray, QVector<double> surface);
+    /**
+     *
+     */
     double linInterpolation(double x1, double x2, double y1, double y2, double x);
     /**
      * Gibt den interpolierten Grauwert eines Subpixels zurück, Q sind die Grauwerte und x1,x2,y1,y2 die Koordinaten der Nachbarn. x und y sind die Koordinaten des Subpixels
@@ -283,27 +350,50 @@ private:
      * Gibt die Koordinaten der benachbarten Bildpunkte, nur für positive Werte: x1, x2, y1, y2
      */
     QVector<int> getClosestNeighbours(double x, double y);
+    /**
+     *
+     */
     double propagateRayThroughHisto(QImage histo, double entryX, double entryY, double angle, double length);
+    /**
+     *
+     */
     QImage propagateOctRayThroughHisto(QImage histo, QImage bScan, double entryX, double entryY, double angle, double length, double mediumRi, double sampleRi);
+    /**
+     *
+     */
     double bilinInterpolFromSinogram(QImage sino, double x, double gamma, int startProj, int deltaProj);
+    /**
+     *
+     */
     double newBilinInterpolFromSinogram(QImage sino, double absX, double absProj);
     /**
      * rotatedEntryPoint: y entry, exit angle Abweichung von senkrechter Geraden in radiant, Länge bis Rückseite getroffen wird, Steigung der Oberfläche
      */
     double getTransmissionGrade(double riMedium, double riSample, entryPoint point);
+    /**
+     * Macht einen Stack aus rotierten Bildern des jeweiligen input bildes
+     */
     QVector<QImage> makeRotatedImageStack(QString path, int stackSize);
-    void learningAF(int size);
-    QVector<surfaceInfo> makeStructVector(QVector<QImage> imageList, QVector<QVector<QVector<double>>> pointList);
+
+    /**
+     * Macht eine Liste aus Structs aus den Inputdaten
+     */
     QVector<newSurfaceInfo> makeNewStructVector(QVector<QImage> imageListThinnedSurface, QVector<QImage> imageListRotSurface, QVector<QVector<entryPoint>> pointList);
+    /**
+     * Macht die Ray Propagation durch alle input Surfaces (meist ein Surface, das rotiert wurde in makeRotatedImageStack()
+     */
     static int newPropagateRayMultiThreaded(newSurfaceInfo &surfaceList);
-
-    QVector<double> getPolySlopeAtEntry(QImage &surface, int X);
+    /**
+     * Fittet die Steigung an Punkt X (oben) mit der Anzahl an Nachbarn, die in der UI eingestellt ist. Order ist der Grad des Polynoms, Weighting macht die naheliegenden Nachbarn wichtiger
+     */
     QVector<double> getPolySlopeAtEntryQt(QImage &surface, int X, int order, bool applyWeighting);
-
-    QVector<double> getPolySlopeAtExit(QImage &surface, int X);
+    /**
+     * Fittet die Steigung an Punkt X (unten) mit der Anzahl an Nachbarn, die in der UI eingestellt ist. Order ist der Grad des Polynoms, Weighting macht die naheliegenden Nachbarn wichtiger
+     */
     QVector<double> getPolySlopeAtExitQt(QImage &surface, int X, int order, bool applyWeighting);
-
-
+    /**
+     * Hier folgen viele static versionen von anderen  fuktionen.
+     */
     static QVector<double> getPolySlopeAtEntryStatic(QImage &surface, int X, int order, bool applyWeighting);
     static int getFirstValueFromTopStatic(QImage &image, int X);
     static int getFirstValueFromBottomStatic(QImage &image, int X);
@@ -319,22 +409,46 @@ private:
      * Berechnet den gesamten, relativen Offset in x-richtung auf der Kamera in mm, Input in mm
      */
     double calculateRelativCameraOffset(double mediumRI, double yExit, double xExit, double angleExit);
+    /**
+     *
+     */
     QVector<double> getBackExitPointAndAngle(QVector<entryPoint> surfacePoints, int xEntry, double mediaRI, double samplRi);
+    /**
+     *
+     */
     QVector<double> generateRefractionPattern(QVector<entryPoint> surfacePoints, double mediaRI, double sampleRI);
+    /**
+     *
+     */
     QVector<refraction::imageMoments> shortenMomentsList(QVector<refraction::imageMoments> moments);
+    /**
+     *
+     */
     void determineTeleError(QVector<refraction::imageMoments> moments);
+    /**
+     *
+     */
     QVector<refraction::imageMoments> makeListRelativeAndScaled(QVector<refraction::imageMoments> moments);
     /**
      * Berechnet alle Aussenpunkte und Steigungen, KEINE RAYPROPAGATION! alles auf Pixelebene der Rekonstruktion
      */
     QVector<entryPoint> calculateAllSlopes(QImage surface);
+    /**
+     *
+     */
     QVector<refraction::imageMoments> swapOrder(QVector<refraction::imageMoments> moments);
        /**
      * @brief Berechnet den RI der Probe anhand der relativen Verschiebung des Kamerapunktes vom erwarteten Punkt bei RI match. xEntry ist der RELATIVE Eintrittspunkt des entsprechenden Kamera-punktes
      * Relative Camera Offset ist die Ablenkung vom erwarteten Punkt
      */
     double determineRelativeCameraOffset(QVector<entryPoint> surfacePoints, int xEntry, double mediumRI, double sampleRI);
+    /**
+     *
+     */
     QVector<double> getFittingSampleRI(QVector<entryPoint> surfacePoints,int xEntry, double relativeCameraOffset, double mediumRI, double expSampleRI, double riRange, double riIncriment, double excaptableOffset);
+    /**
+     * Speichert relevante paramater der simulation oder korrektur in dem angegenen pfad
+     */
     void saveInfoFile(QString name, QString savepath);
 public slots:
     void newNumber(QString name, int number, QString threadID);
