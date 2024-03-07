@@ -114,7 +114,7 @@ float dejitter::getArithmicMiddle(QVector<int> vec, int base, int integral)
 }
 
 
-QVector<int> dejitter::getVerticalColorVector(QImage image, int Y)
+QVector<int> dejitter::getHorizontalColorVector(QImage image, int Y)
 {
     QVector<int> vec = QVector<int>(image.width());
     vec.fill(0,image.width());
@@ -147,7 +147,7 @@ int dejitter::getIndexOfFirstValueLeft(QVector<int> vec)
 
 float dejitter::getBoarderCoordinateRight(QImage sinogram, int Y)
 {
-    auto vector = getVerticalColorVector(sinogram,Y);
+    auto vector = getHorizontalColorVector(sinogram,Y);
     int index = getIndexOfFirstValueRight(vector);
     float boarder = getArithmicMiddle(vector,index,-6);
     return boarder;
@@ -155,7 +155,7 @@ float dejitter::getBoarderCoordinateRight(QImage sinogram, int Y)
 
 float dejitter::getBoarderCoordinateLeft(QImage sinogram, int Y)
 {
-    auto vector = getVerticalColorVector(sinogram,Y);
+    auto vector = getHorizontalColorVector(sinogram,Y);
     int index = getIndexOfFirstValueLeft(vector);
     float boarder = getArithmicMiddle(vector,index,6);
     return boarder;

@@ -1061,32 +1061,6 @@ QImage surface_fitting_test::propagateOctRayThroughHisto(QImage histo, QImage bS
     return bScan;
 }
 
-double surface_fitting_test::bilinInterpolFromSinogram(QImage sino, double x, double gamma, int startProj, int deltaProj)
-{
-    int x1 = int(x);
-    int x2 = x1+1;
-    double y = startProj + (double(numberOfProjections)/360.0)*qRadiansToDegrees(gamma);
-    if(y>numberOfProjections-1){
-        y=y-numberOfProjections+1;
-    }else if(y<0){
-        y=y+numberOfProjections-1;
-    }
-    int y1 = int(y);
-    int y2 = y1 +1;
-    if(gamma>0&&startProj+deltaProj!=y2){
-        y2=startProj+deltaProj;
-    }else if(gamma<0&&startProj+deltaProj!=y1){
-        y1=startProj+deltaProj;
-    }
-
-    quint16 *dstSinoY1 = (quint16*)(sino.bits()+y1*sino.bytesPerLine());
-    double q11 = dstSinoY1[x1];
-    double q21 = dstSinoY1[x2];
-    quint16 *dstSinoY2 = (quint16*)(sino.bits()+y2*sino.bytesPerLine());
-    double q12 = dstSinoY2[x1];
-    double q22 = dstSinoY2[x2];
-    return bilinInterpolation(q11,q12,q21,q22,x1,x2,y1,y2,x,y);
-}
 
 double surface_fitting_test::newBilinInterpolFromSinogram(QImage sino, double absX, double absProj)
 {
@@ -1900,15 +1874,6 @@ QVector<surface_fitting_test::entryPoint> surface_fitting_test::calculateAllSlop
         //qDebug()<<"Punkt slope: "<<x << list[x].slopeExit << "yExit: " <<list[x].yExit;
     }
     return list;
-}
-
-QVector<refraction::imageMoments> surface_fitting_test::swapOrder(QVector<refraction::imageMoments> moments)
-{
-    QVector<refraction::imageMoments> returnMoments = QVector<refraction::imageMoments>(moments.size());
-    for(int i = 0; i<moments.size();i++){
-        returnMoments[i] = moments[moments.size()-1-i];
-    }
-    return returnMoments;
 }
 
 double surface_fitting_test::determineRelativeCameraOffset(QVector<surface_fitting_test::entryPoint> surfacePoints, int xEntry, double mediumRI, double sampleRI)
